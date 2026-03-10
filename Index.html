@@ -608,6 +608,27 @@ async function addSession() {
   var type  = document.getElementById('s-type').value;
   var notes = document.getElementById('s-notes').value.trim();
   if (!date) { toast('Pick a date'); return; }
+
+  // Check if a session with same date + type already exists
+  var existing = sessions.find(function(s){ return s.date === date && s.label === type; });
+  if (existing) {
+    document.getElementById('s-notes').value = '';
+    renderSessions();
+    // scroll to and open the existing session
+    setTimeout(function() {
+      var card = document.getElementById('sb-' + existing.id);
+      var chev = document.getElementById('chev-' + existing.id);
+      if (card && !card.classList.contains('open')) {
+        card.classList.add('open');
+        if (chev) chev.textContent = '▴';
+      }
+      var head = card ? card.previousElementSibling : null;
+      if (head) head.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+    toast('Session already exists — opened it ↓');
+    return;
+  }
+
   var res = await db.from('practices').insert({ date: date, label: type, notes: notes || null }).select().single();
   if (res.error) { toast('Error: ' + res.error.message); return; }
   sessions.unshift(res.data);
