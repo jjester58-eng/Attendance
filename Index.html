@@ -502,6 +502,13 @@ function setFilter(val) {
 }
 
 function renderSessions() {
+  // remember which sessions are open so we restore them after re-render
+  var openIds = {};
+  sessions.forEach(function(s) {
+    var b = document.getElementById('sb-' + s.id);
+    if (b && b.classList.contains('open')) openIds[s.id] = true;
+  });
+
   var list = sessFilter === 'all' ? sessions : sessions.filter(function(s){ return s.label === sessFilter; });
   var el = document.getElementById('sess-list');
   if (!list.length) { el.innerHTML = '<div class="empty">No sessions yet.</div>'; return; }
@@ -522,7 +529,7 @@ function renderSessions() {
         '<td>' + lvlBadge(p.level) + '</td>' +
         '<td>' + (p.position || dash()) + '</td>' +
         '<td>' + grpBadge(p.group_name) + '</td>' +
-        '<td><div class="tog">' +
+        '<td><div class="tog" id="tog-' + s.id + '-' + p.id + '">' +
           '<button class="' + (status==='present'?'on-p':'') + '" onclick="setAtt(\'' + s.id + '\',\'' + p.id + '\',\'present\')">Present</button>' +
           '<button class="' + (status==='absent' ?'on-a':'') + '" onclick="setAtt(\'' + s.id + '\',\'' + p.id + '\',\'absent\')">Absent</button>' +
           '<button class="' + (status==='tardy'  ?'on-t':'') + '" onclick="setAtt(\'' + s.id + '\',\'' + p.id + '\',\'tardy\')">T</button>' +
@@ -536,10 +543,12 @@ function renderSessions() {
         '<span class="b ' + tc + '">' + s.label + '</span>' +
         '<span class="s-date">' + fmtDate(s.date) + '</span>' +
         '<span style="flex:1;font-size:12px;color:var(--muted)">' + (s.notes || '') + '</span>' +
-        '<span class="b bg">' + nPresent + ' present</span>' +
-        '<span class="b br">' + nAbsent + ' absent</span>' +
-        (nTardy ? '<span class="b ba">' + nTardy + ' tardy</span>' : '') +
-        (nInjured ? '<span class="b bi">' + nInjured + ' inj</span>' : '') +
+        '<span id="hdr-' + s.id + '">' +
+          '<span class="b bg">' + nPresent + ' present</span>' +
+          '<span class="b br">' + nAbsent + ' absent</span>' +
+          (nTardy ? '<span class="b ba">' + nTardy + ' tardy</span>' : '') +
+          (nInjured ? '<span class="b bi">' + nInjured + ' inj</span>' : '') +
+        '</span>' +
         '<button class="btn-del" onclick="event.stopPropagation();delSession(\'' + s.id + '\')">Delete</button>' +
         '<span id="chev-' + s.id + '" style="font-size:11px;color:var(--muted)">▾</span>' +
       '</div>' +
@@ -551,6 +560,14 @@ function renderSessions() {
       '</div>' +
     '</div>';
   }).join('');
+
+  // restore open sessions
+  Object.keys(openIds).forEach(function(id) {
+    var body = document.getElementById('sb-' + id);
+    var chev = document.getElementById('chev-' + id);
+    if (body) { body.classList.add('open'); }
+    if (chev) { chev.textContent = '▴'; }
+  });
 }
 
 function toggleSess(id) {
@@ -585,13 +602,23 @@ async function setAtt(sessionId, playerId, status) {
   var existing = attendance.find(function(a){ return a.practice_id === sessionId && a.player_id === playerId; });
   if (existing) {
     if (existing.status === status) return;
-    var r = await db.from('attendance').update({ status: status }).eq('id', existing.id);
-    if (!r.error) existing.status = status;
+    // update local state immediately so UI reflects change at once
+    existing.status = status;
+    renderSessions(); renderReports();
+    // then save to DB in background
+    db.from('attendance').update({ status: status }).eq('id', existing.id);
   } else {
+    // optimistically add to local state right away
+    var tempRecord = { id: 'temp-' + Date.now(), practice_id: sessionId, player_id: playerId, status: status };
+    attendance.push(tempRecord);
+    renderSessions(); renderReports();
+    // save to DB and replace temp record with real one
     var r2 = await db.from('attendance').insert({ practice_id: sessionId, player_id: playerId, status: status }).select().single();
-    if (r2.data) attendance.push(r2.data);
+    if (r2.data) {
+      var idx = attendance.indexOf(tempRecord);
+      if (idx >= 0) attendance[idx] = r2.data;
+    }
   }
-  renderSessions(); renderReports();
 }
 
 // ── Reports ──
