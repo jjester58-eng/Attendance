@@ -509,7 +509,7 @@ async function syncCircus() {
   var toInsert = [];
 
   players.forEach(function(p) {
-    if (p.active === false) return;
+    if (p.active === false || p.active === 'false') return;
     var strikes = getStrikes(p.id);
     var alreadyOn = circusRecords.find(function(c) { return c.player_id === p.id; });
     if (isDueForCircus(p.id) && !alreadyOn) {
@@ -747,8 +747,8 @@ function renderRoster() {
     if (level && p.level !== level) return false;
     if (group && p.group_name !== group) return false;
     if (pos && p.position !== pos) return false;
-    if (activeFilter === 'active' && p.active === false) return false;
-    if (activeFilter === 'inactive' && p.active !== false) return false;
+    if (activeFilter === 'active' && (p.active === false || p.active === 'false')) return false;
+    if (activeFilter === 'inactive' && p.active !== false && p.active !== 'false') return false;
     return true;
   });
 
@@ -767,7 +767,7 @@ function renderRoster() {
 
   var tb = document.getElementById('roster-body');
   if (!list.length) {
-    tb.innerHTML = '<tr><td colspan="8" class="empty">No players match filters.</td></tr>';
+    tb.innerHTML = '<tr><td colspan="9" class="empty">No players match filters.</td></tr>';
     return;
   }
   tb.innerHTML = list.map(function(p) {
@@ -784,24 +784,21 @@ function renderRoster() {
       strikeBadge = '<span style="color:var(--muted);font-size:11px">—</span>';
     }
 
-    return '<tr>' +
-      '<td>' + esc(p.name) + '</td>' +
+    return '<tr' + (p.active === false ? ' style="opacity:.5"' : '') + '>' +
+      '<td>' + esc(p.name) + (p.active === false ? ' <span class="b b-inactive">Inactive</span>' : '') + '</td>' +
       '<td class="hide-mobile">' + (p.grade || dash()) + '</td>' +
       '<td class="hide-mobile">' + (p.period || dash()) + '</td>' +
       '<td>' + (p.position || dash()) + '</td>' +
       '<td>' + lvlBadge(p.level) + '</td>' +
       '<td>' + grpBadge(p.group_name) + '</td>' +
       '<td>' + strikeBadge + '</td>' +
-      '<td>' +
-        (p.active === false
-          ? '<button class="btn-gh" style="font-size:11px;padding:4px 10px" onclick="toggleActive(\'' + p.id + '\',true)">Set Active</button>'
-          : '<button class="btn-del" style="color:var(--muted);border-color:#1e1e1e;font-size:11px;padding:4px 10px" onclick="toggleActive(\'' + p.id + '\',false)">Set Inactive</button>') +
-      '</td>' +
       '<td style="display:flex;gap:6px;justify-content:flex-end">' +
-        '<button class="btn-edit" onclick="openEdit(\'' + p.id + \'\')">' + 'Edit</button>' +
-        '<button class="btn-del" onclick="delPlayer(\'' + p.id + \'\')">' + 'Remove</button>' +
+        (p.active === false
+          ? '<button class="btn-g" onclick="toggleActive(&#39;' + p.id + '&#39;,true)">Reactivate</button>'
+          : '<button class="btn-gh" onclick="toggleActive(&#39;' + p.id + '&#39;,false)">Set Inactive</button>') +
+        '<button class="btn-edit" onclick="openEdit(&#39;' + p.id + '&#39;)">Edit</button>' +
+        '<button class="btn-del" onclick="delPlayer(&#39;' + p.id + '&#39;)">Remove</button>' +
       '</td></tr>';
-  }).join('');
 }
 
 function sortBy(col) {
@@ -875,11 +872,12 @@ async function savePlayer() {
 }
 
 async function toggleActive(id, isActive) {
-  var res = await db.from('players').update({ active: isActive }).eq('id', id);
+  var active = isActive === true || isActive === 'true' || isActive === 1;
+  var res = await db.from('players').update({ active: active }).eq('id', id);
   if (res.error) { toast('Error: ' + res.error.message); return; }
   var p = players.find(function(x){ return x.id === id; });
-  if (p) p.active = isActive;
-  toast(isActive ? 'Player set to Active ✓' : 'Player set to Inactive ✓');
+  if (p) p.active = active;
+  toast(active ? '✓ Player reactivated' : '✓ Player set to Inactive');
   renderRoster(); renderSessions(); renderReports(); renderCircus();
 }
 
@@ -967,7 +965,7 @@ function renderSessions() {
     var nInjured  = att.filter(function(a){ return a.status === 'injured'; }).length;
     var tc = s.label === 'AM' ? 'b-am' : 'b-pm';
 
-    var rows = players.filter(function(p){ return p.active !== false; }).map(function(p) {
+    var rows = players.filter(function(p){ return p.active !== false && p.active !== 'false'; }).map(function(p) {
       var rec = att.find(function(a){ return a.player_id === p.id; });
       var status = rec ? rec.status : null;
       return '<tr>' +
@@ -1087,7 +1085,7 @@ function renderReports() {
   var grp  = document.getElementById('rpt-group').value;
   var st   = document.getElementById('rpt-sess').value;
 
-  var fp = players.filter(function(p){ return p.active !== false && (!lvl || p.level===lvl) && (!grp || p.group_name===grp); });
+  var fp = players.filter(function(p){ return p.active !== false && p.active !== 'false' && (!lvl || p.level===lvl) && (!grp || p.group_name===grp); });
   var fs = sessions.filter(function(s){ return !st || s.label===st; });
 
   var totP = 0, totA = 0, totT = 0, totI = 0;
