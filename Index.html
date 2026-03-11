@@ -239,6 +239,7 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
     <button class="btn-g" onclick="openAdd()">+ Add Player</button>
     <button class="btn-gh" onclick="document.getElementById('csv-in').click()">⬆ CSV</button>
     <button class="btn-gh" onclick="fixSplitNames()" title="Merge players where first name ended up in Grade field">🔧 Fix Split Names</button>
+    <button class="btn-del" style="margin-left:auto" onclick="openNewSeason()">🗑 New Season</button>
     <input type="file" id="csv-in" accept=".csv" style="display:none" onchange="importCSV(event)">
   </div>
   <p class="hint">CSV columns: <code>name</code>, <code>grade</code>, <code>period</code>, <code>position</code>, <code>level</code> (Freshman/JV/Varsity), <code>group</code> (AM/PM)</p>
@@ -404,6 +405,40 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
     <div class="m-actions">
       <button class="btn-gh" onclick="closeCircusModal()">Cancel</button>
       <button class="btn-orange" onclick="saveCircusAdd()">Add to Circus</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ NEW SEASON MODAL ══ -->
+<div class="overlay" id="season-modal">
+  <div class="modal">
+    <h2 style="color:var(--red)">⚠ New Season Reset</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.6">Choose what to clear. This cannot be undone.</p>
+    <div class="mf">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--text);text-transform:none;letter-spacing:0">
+        <input type="checkbox" id="ns-players" style="width:16px;height:16px;accent-color:var(--red)">
+        Remove all players from roster
+      </label>
+    </div>
+    <div class="mf">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--text);text-transform:none;letter-spacing:0">
+        <input type="checkbox" id="ns-sessions" style="width:16px;height:16px;accent-color:var(--red)">
+        Delete all sessions &amp; attendance records
+      </label>
+    </div>
+    <div class="mf">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--text);text-transform:none;letter-spacing:0">
+        <input type="checkbox" id="ns-circus" style="width:16px;height:16px;accent-color:var(--red)">
+        Clear all circus records &amp; history
+      </label>
+    </div>
+    <div class="mf" style="margin-top:18px">
+      <label>Type <strong>RESET</strong> to confirm</label>
+      <input type="text" id="ns-confirm" placeholder="RESET" style="margin-top:6px">
+    </div>
+    <div class="m-actions">
+      <button class="btn-gh" onclick="closeSeasonModal()">Cancel</button>
+      <button class="btn-del" style="padding:9px 16px;font-size:13px" onclick="runNewSeason()">Clear Selected</button>
     </div>
   </div>
 </div>
@@ -932,6 +967,59 @@ function looksLikeName(v) {
 }
 
 // ── Fix Split Names (cleanup for Last, First CSV imports) ──
+// ── New Season ──
+function openNewSeason() {
+  document.getElementById('ns-players').checked = false;
+  document.getElementById('ns-sessions').checked = false;
+  document.getElementById('ns-circus').checked = false;
+  document.getElementById('ns-confirm').value = '';
+  document.getElementById('season-modal').classList.add('open');
+}
+
+function closeSeasonModal() {
+  document.getElementById('season-modal').classList.remove('open');
+}
+
+document.getElementById('season-modal').addEventListener('click', function(e) {
+  if (e.target === e.currentTarget) closeSeasonModal();
+});
+
+async function runNewSeason() {
+  var confirm_val = document.getElementById('ns-confirm').value.trim();
+  if (confirm_val !== 'RESET') { toast('Type RESET to confirm'); return; }
+
+  var doPlayers  = document.getElementById('ns-players').checked;
+  var doSessions = document.getElementById('ns-sessions').checked;
+  var doCircus   = document.getElementById('ns-circus').checked;
+
+  if (!doPlayers && !doSessions && !doCircus) { toast('Select at least one option'); return; }
+
+  closeSeasonModal();
+  toast('Clearing…');
+
+  try {
+    if (doCircus) {
+      await db.from('circus_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await db.from('circus').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      circusRecords = []; circusHistory = [];
+    }
+    if (doSessions) {
+      await db.from('attendance').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await db.from('practices').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      attendance = []; sessions = [];
+    }
+    if (doPlayers) {
+      await db.from('players').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      players = [];
+    }
+    refreshPosFilter();
+    renderRoster(); renderSessions(); renderReports(); renderCircus();
+    toast('✓ Season reset complete');
+  } catch(e) {
+    toast('Error: ' + e.message);
+  }
+}
+
 async function fixSplitNames() {
   // Find players where grade looks like a first name (not a number)
   var toFix = players.filter(function(p) {
@@ -940,7 +1028,7 @@ async function fixSplitNames() {
   if (!toFix.length) { toast("No split names found — all clean!"); return; }
 
   var preview = toFix.slice(0,5).map(function(p) {
-    return p.grade.trim() + " " + p.name.trim();
+    return p.name.trim() + ", " + p.grade.trim();
   }).join(", ");
   if (toFix.length > 5) preview += " … and " + (toFix.length - 5) + " more";
 
@@ -949,7 +1037,7 @@ async function fixSplitNames() {
   var fixed = 0;
   for (var i = 0; i < toFix.length; i++) {
     var p = toFix[i];
-    var newName = p.grade.trim() + " " + p.name.trim();
+    var newName = p.name.trim() + ", " + p.grade.trim();
     var res = await db.from("players").update({ name: newName, grade: null }).eq("id", p.id);
     if (!res.error) {
       p.name = newName;
@@ -989,12 +1077,11 @@ async function importCSV(event) {
     var name = col('name') >= 0 ? cols[col('name')] : cols[0];
     if (!name) return;
 
-    // Auto-detect "Last, First" split: if no header and only one column,
-    // or if grade col looks like a first name, merge them as "First Last"
+    // If grade looks like a first name, the name was "Last, First" split by comma.
+    // Re-join as "Last, First" (preserving original order) and clear grade.
     var grade = col('grade') >= 0 ? cols[col('grade')] || null : null;
     if (grade && looksLikeName(grade) && col('grade') === 1 && col('name') === 0) {
-      // Reconstruct as "First Last" from "Last, First"
-      name = grade + ' ' + name;
+      name = name.trim() + ', ' + grade.trim();
       grade = null;
     }
 
