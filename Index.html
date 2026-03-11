@@ -421,22 +421,28 @@ let sessFilter = 'all';
 // ── Init ──
 async function init() {
   try {
-    const [p, s, a, c, ch] = await Promise.all([
-      db.from('players').select('*').order('name'),
-      db.from('practices').select('*').order('date', { ascending: false }),
-      db.from('attendance').select('*'),
-      db.from('circus').select('*'),
-      db.from('circus_history').select('*')
-    ]);
-    if (p.error) throw p.error;
-    if (s.error) throw s.error;
-    if (a.error) throw a.error;
-    // circus tables might not exist yet — handle gracefully
-    players    = p.data || [];
-    sessions   = s.data || [];
+    setStatus('● Loading players…', 'var(--amber)');
+    const p = await db.from('players').select('*').order('name');
+    if (p.error) throw new Error('players: ' + p.error.message);
+    players = p.data || [];
+
+    setStatus('● Loading sessions…', 'var(--amber)');
+    const s = await db.from('practices').select('*').order('date', { ascending: false });
+    if (s.error) throw new Error('practices: ' + s.error.message);
+    sessions = s.data || [];
+
+    setStatus('● Loading attendance…', 'var(--amber)');
+    const a = await db.from('attendance').select('*');
+    if (a.error) throw new Error('attendance: ' + a.error.message);
     attendance = a.data || [];
-    circusRecords  = c.error ? [] : (c.data || []);
-    circusHistory  = ch.error ? [] : (ch.data || []);
+
+    setStatus('● Loading circus…', 'var(--amber)');
+    const c = await db.from('circus').select('*');
+    circusRecords = c.error ? [] : (c.data || []);
+
+    const ch = await db.from('circus_history').select('*');
+    circusHistory = ch.error ? [] : (ch.data || []);
+
     setStatus('● Connected', 'var(--green)');
     refreshPosFilter();
     renderRoster();
@@ -445,9 +451,12 @@ async function init() {
     renderCircus();
     document.getElementById('s-date').valueAsDate = new Date();
   } catch(e) {
-    setStatus('● Error — check console', 'var(--red)');
+    var msg = e && e.message ? e.message : String(e);
+    setStatus('● Error: ' + msg, 'var(--red)');
+    document.getElementById('roster-body').innerHTML = '<tr><td colspan="9" class="empty" style="color:var(--red)">Failed to load: ' + msg + '</td></tr>';
     console.error(e);
   }
+}
 }
 
 function setStatus(t, c) {
