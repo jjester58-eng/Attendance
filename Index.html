@@ -238,6 +238,7 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
     </select>
     <button class="btn-g" onclick="openAdd()">+ Add Player</button>
     <button class="btn-gh" onclick="document.getElementById('csv-in').click()">⬆ CSV</button>
+    <button class="btn-gh" onclick="fixSplitNames()" title="Merge players where first name ended up in Grade field">🔧 Fix Split Names</button>
     <input type="file" id="csv-in" accept=".csv" style="display:none" onchange="importCSV(event)">
   </div>
   <p class="hint">CSV columns: <code>name</code>, <code>grade</code>, <code>period</code>, <code>position</code>, <code>level</code> (Freshman/JV/Varsity), <code>group</code> (AM/PM)</p>
@@ -903,6 +904,64 @@ async function delPlayer(id) {
 }
 
 // ── CSV Import ──
+// Properly parse a CSV line respecting quoted fields (handles "Last, First" names)
+function parseCSVLine(line) {
+  var result = [];
+  var cur = '';
+  var inQuotes = false;
+  for (var i = 0; i < line.length; i++) {
+    var ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i+1] === '"') { cur += '"'; i++; } // escaped quote
+      else { inQuotes = !inQuotes; }
+    } else if (ch === ',' && !inQuotes) {
+      result.push(cur.trim());
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+// Detect if a value looks like a first name (non-numeric, non-empty, no digits)
+function looksLikeName(v) {
+  if (!v) return false;
+  return isNaN(v) && /^[A-Za-z]/.test(v.trim());
+}
+
+// ── Fix Split Names (cleanup for Last, First CSV imports) ──
+async function fixSplitNames() {
+  // Find players where grade looks like a first name (not a number)
+  var toFix = players.filter(function(p) {
+    return p.grade && isNaN(p.grade) && /^[A-Za-z]/.test(p.grade.trim());
+  });
+  if (!toFix.length) { toast("No split names found — all clean!"); return; }
+
+  var preview = toFix.slice(0,5).map(function(p) {
+    return p.grade.trim() + " " + p.name.trim();
+  }).join(", ");
+  if (toFix.length > 5) preview += " … and " + (toFix.length - 5) + " more";
+
+  if (!confirm("Found " + toFix.length + " players with split names.\n\nWill rename to: " + preview + "\n\nProceed?")) return;
+
+  var fixed = 0;
+  for (var i = 0; i < toFix.length; i++) {
+    var p = toFix[i];
+    var newName = p.grade.trim() + " " + p.name.trim();
+    var res = await db.from("players").update({ name: newName, grade: null }).eq("id", p.id);
+    if (!res.error) {
+      p.name = newName;
+      p.grade = null;
+      fixed++;
+    }
+  }
+  players.sort(function(a,b){ return a.name.localeCompare(b.name); });
+  refreshPosFilter(); renderRoster(); renderReports();
+  toast("✓ Fixed " + fixed + " player names");
+}
+
 async function importCSV(event) {
   var file = event.target.files[0]; if (!file) return;
   var text = await file.text();
@@ -912,8 +971,13 @@ async function importCSV(event) {
   var first = lines[0].toLowerCase();
   var hasHeader = ['name','grade','period','position','level','group'].some(function(h){ return first.indexOf(h) >= 0; });
   var headers, rows;
-  if (hasHeader) { headers = lines[0].split(',').map(function(h){ return h.trim().toLowerCase(); }); rows = lines.slice(1); }
-  else { headers = ['name']; rows = lines; }
+  if (hasHeader) {
+    headers = parseCSVLine(lines[0]).map(function(h){ return h.toLowerCase(); });
+    rows = lines.slice(1);
+  } else {
+    headers = ['name'];
+    rows = lines;
+  }
 
   function col(k) { return headers.indexOf(k); }
   var existing = {};
@@ -921,12 +985,26 @@ async function importCSV(event) {
   var toAdd = [];
 
   rows.forEach(function(r) {
-    var cols = r.split(',').map(function(c){ return c.trim(); });
+    var cols = parseCSVLine(r);
     var name = col('name') >= 0 ? cols[col('name')] : cols[0];
+    if (!name) return;
+
+    // Auto-detect "Last, First" split: if no header and only one column,
+    // or if grade col looks like a first name, merge them as "First Last"
+    var grade = col('grade') >= 0 ? cols[col('grade')] || null : null;
+    if (grade && looksLikeName(grade) && col('grade') === 1 && col('name') === 0) {
+      // Reconstruct as "First Last" from "Last, First"
+      name = grade + ' ' + name;
+      grade = null;
+    }
+
+    name = name.trim();
     if (!name || existing[name.toLowerCase()]) return;
+    existing[name.toLowerCase()] = true;
+
     toAdd.push({
-      name: name,
-      grade:      col('grade') >= 0 ? cols[col('grade')] || null : null,
+      name:       name,
+      grade:      grade,
       period:     col('period') >= 0 ? cols[col('period')] || null : null,
       position:   col('position') >= 0 ? cols[col('position')] || null : null,
       level:      col('level') >= 0 ? cols[col('level')] || null : null,
