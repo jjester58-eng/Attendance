@@ -457,7 +457,6 @@ async function init() {
     console.error(e);
   }
 }
-}
 
 function setStatus(t, c) {
   const el = document.getElementById('status');
@@ -792,9 +791,12 @@ function renderRoster() {
     } else {
       strikeBadge = '<span style="color:var(--muted);font-size:11px">—</span>';
     }
-
-    return '<tr' + (p.active === false ? ' style="opacity:.5"' : '') + '>' +
-      '<td>' + esc(p.name) + (p.active === false ? ' <span class="b b-inactive">Inactive</span>' : '') + '</td>' +
+    var isInactive = p.active === false || p.active === 'false';
+    var toggleBtn = isInactive
+      ? '<button class="btn-g" onclick="toggleActive(\'' + p.id + '\', true)">Reactivate</button>'
+      : '<button class="btn-gh" onclick="toggleActive(\'' + p.id + '\', false)">Set Inactive</button>';
+    return '<tr' + (isInactive ? ' style="opacity:.55"' : '') + '>' +
+      '<td>' + esc(p.name) + (isInactive ? ' <span class="b b-inactive">Inactive</span>' : '') + '</td>' +
       '<td class="hide-mobile">' + (p.grade || dash()) + '</td>' +
       '<td class="hide-mobile">' + (p.period || dash()) + '</td>' +
       '<td>' + (p.position || dash()) + '</td>' +
@@ -802,14 +804,13 @@ function renderRoster() {
       '<td>' + grpBadge(p.group_name) + '</td>' +
       '<td>' + strikeBadge + '</td>' +
       '<td style="display:flex;gap:6px;justify-content:flex-end">' +
-        (p.active === false
-          ? '<button class="btn-g" onclick="toggleActive(&#39;' + p.id + '&#39;,true)">Reactivate</button>'
-          : '<button class="btn-gh" onclick="toggleActive(&#39;' + p.id + '&#39;,false)">Set Inactive</button>') +
-        '<button class="btn-edit" onclick="openEdit(&#39;' + p.id + '&#39;)">Edit</button>' +
-        '<button class="btn-del" onclick="delPlayer(&#39;' + p.id + '&#39;)">Remove</button>' +
+        toggleBtn +
+        '<button class="btn-edit" onclick="openEdit(\x27' + p.id + '\x27)">Edit</button>' +
+        '<button class="btn-del" onclick="delPlayer(\x27' + p.id + '\x27)">Remove</button>' +
       '</td></tr>';
-}
+  }).join('');
 
+}
 function sortBy(col) {
   rSort.dir = rSort.col === col ? rSort.dir * -1 : 1;
   rSort.col = col;
