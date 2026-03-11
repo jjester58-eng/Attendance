@@ -350,11 +350,9 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
         <th>Player</th>
         <th>Level</th>
         <th class="hide-mobile">Group</th>
-        <th>Total Completed Rounds</th>
-        <th>Current Strikes</th>
-        <th>Status</th>
+        <th>Completed Rounds</th>
       </tr></thead>
-      <tbody id="circus-history-body"><tr><td colspan="6" class="empty">No history yet.</td></tr></tbody>
+      <tbody id="circus-history-body"><tr><td colspan="4" class="empty">No history yet.</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -457,24 +455,33 @@ function showPage(name) {
 }
 
 // ── Strike Calculator ──
-// Returns current net strikes for a player.
-// Each absence or tardy = 1 strike. Cap at 3. Resets are stored in circus_history.
+// Returns current net strikes for a player (no cap — accumulates across rounds).
+// Each absence or tardy = 1 strike. Completed circus rounds clear 3 strikes each.
 function getStrikes(playerId) {
-  // Count total absences + tardies across all sessions
   var total = attendance.filter(function(a) {
     return a.player_id === playerId && (a.status === 'absent' || a.status === 'tardy');
   }).length;
 
-  // Count completed circus rounds (each round = 3 strikes cleared)
   var completedRounds = circusHistory.filter(function(h) {
     return h.player_id === playerId;
   }).length;
 
-  // Net strikes = total - (rounds * 3), capped at 3, floored at 0
+  // Net = total accumulated strikes minus cleared strikes (3 per completed round)
   var net = total - (completedRounds * 3);
   if (net < 0) net = 0;
-  if (net > 3) net = 3;
   return net;
+}
+
+// Returns how many strikes into the CURRENT 3-strike cycle (0, 1, or 2)
+// Used for pip display — shows progress toward next circus
+function getStrikesInCycle(playerId) {
+  return getStrikes(playerId) % 3;
+}
+
+// Returns true if player is at a multiple of 3 (circus due)
+function isDueForCircus(playerId) {
+  var s = getStrikes(playerId);
+  return s > 0 && s % 3 === 0;
 }
 
 // Returns total career absences+tardies
@@ -493,7 +500,7 @@ async function syncCircus() {
   players.forEach(function(p) {
     var strikes = getStrikes(p.id);
     var alreadyOn = circusRecords.find(function(c) { return c.player_id === p.id; });
-    if (strikes >= 3 && !alreadyOn) {
+    if (isDueForCircus(p.id) && !alreadyOn) {
       toInsert.push({ player_id: p.id, makeups: 0, added_manually: false });
     }
   });
@@ -600,8 +607,11 @@ function renderCircus() {
       var strikes = getStrikes(p.id);
 
       // Strike pips
+      var cyclePos = getStrikesInCycle(p.id);
       var strikePips = [1,2,3].map(function(i) {
-        var cls = 'strike-pip' + (i <= strikes ? (strikes >= 3 ? ' danger' : ' active') : '');
+        // cyclePos 0 means they just hit a multiple of 3 (circus due/active)
+        var filled = cyclePos === 0 ? 3 : cyclePos;
+        var cls = 'strike-pip' + (i <= filled ? (filled >= 3 ? ' danger' : ' active') : '');
         return '<div class="' + cls + '"></div>';
       }).join('');
 
@@ -641,40 +651,22 @@ function renderCircus() {
 
   var histPlayers = players.filter(function(p) {
     if (lvlFilter && p.level !== lvlFilter) return false;
-    return historyMap[p.id] || getTotalStrikes(p.id) > 0;
+    return historyMap[p.id] > 0;
   });
 
   var hb = document.getElementById('circus-history-body');
   if (!histPlayers.length) {
-    hb.innerHTML = '<tr><td colspan="6" class="empty">No history yet.</td></tr>';
+    hb.innerHTML = '<tr><td colspan="4" class="empty">No history yet.</td></tr>';
   } else {
     hb.innerHTML = histPlayers
       .sort(function(a,b) { return (historyMap[b.id]||0) - (historyMap[a.id]||0); })
       .map(function(p) {
         var rounds = historyMap[p.id] || 0;
-        var strikes = getStrikes(p.id);
-        var onCircus = circusRecords.find(function(c) { return c.player_id === p.id; });
-        var statusBadge = onCircus
-          ? '<span class="b b-strike">On Circus</span>'
-          : strikes >= 3
-            ? '<span class="b br">Needs Circus</span>'
-            : strikes > 0
-              ? '<span class="b ba">' + strikes + ' Strike' + (strikes>1?'s':'') + '</span>'
-              : '<span class="b b-clear">Clear</span>';
-
         return '<tr>' +
           '<td>' + esc(p.name) + '</td>' +
           '<td>' + lvlBadge(p.level) + '</td>' +
           '<td class="hide-mobile">' + grpBadge(p.group_name) + '</td>' +
-          '<td><span style="font-family:\'Bebas Neue\',sans-serif;font-size:20px;color:var(--orange)">' + rounds + '</span></td>' +
-          '<td>' +
-            '<div class="strike-meter" style="gap:4px">' +
-              [1,2,3].map(function(i) {
-                return '<div class="strike-pip' + (i<=strikes?(strikes>=3?' danger':' active'):'') + '"></div>';
-              }).join('') +
-            '</div>' +
-          '</td>' +
-          '<td>' + statusBadge + '</td>' +
+          '<td><span style="font-family:\'Bebas Neue\',sans-serif;font-size:20px;color:var(--green)">' + rounds + '</span></td>' +
         '</tr>';
       }).join('');
   }
@@ -768,9 +760,9 @@ function renderRoster() {
     var onCircus = circusRecords.find(function(c) { return c.player_id === p.id; });
     var strikeBadge;
     if (onCircus) {
-      strikeBadge = '<span class="b b-strike">Circus</span>';
-    } else if (strikes >= 3) {
-      strikeBadge = '<span class="b br">3 ⚡</span>';
+      strikeBadge = '<span class="b b-strike">🎪 ' + strikes + ' strikes</span>';
+    } else if (isDueForCircus(p.id)) {
+      strikeBadge = '<span class="b br">' + strikes + ' ⚡ Circus!</span>';
     } else if (strikes > 0) {
       strikeBadge = '<span class="b ba">' + strikes + ' strike' + (strikes>1?'s':'') + '</span>';
     } else {
@@ -1101,9 +1093,9 @@ function renderReports() {
     var onCircus = circusRecords.find(function(c){ return c.player_id === p.id; });
 
     var strikeBadge = onCircus
-      ? '<span class="b b-strike">🎪 Circus</span>'
-      : strikes >= 3
-        ? '<span class="b br">3 ⚡</span>'
+      ? '<span class="b b-strike">🎪 ' + strikes + '</span>'
+      : isDueForCircus(p.id)
+        ? '<span class="b br">' + strikes + ' ⚡</span>'
         : strikes > 0
           ? '<span class="b ba">' + strikes + '</span>'
           : '<span style="color:var(--muted);font-size:11px">—</span>';
