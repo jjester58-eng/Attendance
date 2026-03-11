@@ -9,6 +9,7 @@
 <style>
 :root {
   --green:#00e676; --red:#ff1744; --amber:#ffab00; --blue:#29b6f6;
+  --purple:#ce93d8; --orange:#ff7043;
   --bg:#0d0d0d; --surface:#161616; --surface2:#1c1c1c;
   --border:#2a2a2a; --text:#f0f0f0; --muted:#666;
 }
@@ -25,6 +26,7 @@ header h1{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;
 .tab{padding:13px 18px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;letter-spacing:.8px;text-transform:uppercase;}
 .tab:hover{color:var(--text);}
 .tab.active{color:var(--green);border-bottom-color:var(--green);}
+.tab.circus-tab.active{color:var(--orange);border-bottom-color:var(--orange);}
 
 /* layout */
 .container{padding:28px;max-width:1020px;margin:0 auto;}
@@ -51,6 +53,8 @@ button{padding:9px 16px;border-radius:6px;border:none;font-family:inherit;font-s
 .btn-del:hover{background:#1a0505;}
 .btn-edit{background:transparent;color:var(--amber);border:1px solid #2a1a00;font-size:11px;padding:5px 9px;}
 .btn-edit:hover{background:#1a1000;}
+.btn-orange{background:var(--orange);color:#000;}
+.btn-orange:hover{opacity:.85;}
 
 /* pills */
 .pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
@@ -81,6 +85,9 @@ button{padding:9px 16px;border-radius:6px;border:none;font-family:inherit;font-s
 .b-fr{background:#0a2a1a;color:#80cbc4;}
 .b-am{background:#0d1a2a;color:var(--blue);}
 .b-pm{background:#2a1a0d;color:var(--amber);}
+.b-strike{background:#2a1500;color:var(--orange);}
+.b-clear{background:#0d2a0d;color:var(--green);}
+.b-manual{background:#1a0a2a;color:var(--purple);}
 
 /* attendance toggle */
 .tog{display:flex;border-radius:5px;overflow:hidden;border:1px solid var(--border);width:fit-content;}
@@ -95,21 +102,21 @@ button{padding:9px 16px;border-radius:6px;border:none;font-family:inherit;font-s
   .container{padding:16px;}
   .row{gap:6px;}
   .row input,.row select,.row .grow{width:100%;min-width:0;}
-  .btn-g,.btn-gh{width:100%;text-align:center;}
+  .btn-g,.btn-gh,.btn-orange{width:100%;text-align:center;}
   .tbl{font-size:12px;}
   .tbl th,.tbl td{padding:8px 8px;}
-  /* hide less-critical roster columns on mobile */
   .hide-mobile{display:none;}
   .s-head{gap:6px;padding:11px 12px;}
   .s-date{font-size:14px;}
   .tog button{padding:7px 9px;font-size:12px;}
   .stat-grid{grid-template-columns:1fr 1fr;}
   .modal{padding:20px 16px;}
-  .mf input,.mf select{font-size:16px;} /* prevent iOS zoom */
-  input[type="text"],input[type="date"],select{font-size:16px;} /* prevent iOS zoom */
+  .mf input,.mf select{font-size:16px;}
+  input[type="text"],input[type="date"],select{font-size:16px;}
   .chips{flex-direction:column;gap:2px;}
   .rpt-dates-col{min-width:160px;}
   .bar-bg{min-width:40px;}
+  .circus-columns{grid-template-columns:1fr;}
 }
 .tog button.on-p{background:#0d2a0d;color:var(--green);}
 .tog button.on-a{background:#2a0d0d;color:var(--red);}
@@ -137,6 +144,31 @@ button{padding:9px 16px;border-radius:6px;border:none;font-family:inherit;font-s
 .bar-fill{height:100%;border-radius:3px;background:var(--green);transition:width .4s;}
 .bar-pct{font-size:12px;color:var(--muted);width:32px;text-align:right;}
 
+/* makeup dots */
+.makeup-dots{display:flex;gap:5px;align-items:center;}
+.dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border);background:transparent;cursor:pointer;transition:all .15s;flex-shrink:0;}
+.dot.filled{background:var(--orange);border-color:var(--orange);}
+.dot:hover{border-color:var(--orange);}
+
+/* strike meter */
+.strike-meter{display:flex;gap:4px;align-items:center;}
+.strike-pip{width:10px;height:10px;border-radius:50%;background:#1e1e1e;border:1px solid var(--border);}
+.strike-pip.active{background:var(--orange);}
+.strike-pip.danger{background:var(--red);}
+
+/* circus layout */
+.circus-columns{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.circus-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.circus-panel-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.circus-panel-title{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:var(--orange);}
+.circus-panel-body{overflow-x:auto;}
+
+/* circus banner */
+.circus-banner{background:linear-gradient(135deg,#1a0800 0%,#2a1200 100%);border:1px solid #3a1800;border-radius:10px;padding:18px 22px;margin-bottom:20px;display:flex;align-items:center;gap:16px;}
+.circus-banner-icon{font-size:28px;}
+.circus-banner-text h3{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--orange);}
+.circus-banner-text p{font-size:12px;color:var(--muted);margin-top:3px;}
+
 /* date chips */
 .chips{display:flex;flex-wrap:wrap;gap:3px;}
 .chip{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;}
@@ -160,6 +192,9 @@ button{padding:9px 16px;border-radius:6px;border:none;font-family:inherit;font-s
 .toast.show{opacity:1;transform:none;}
 code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
 .hint{font-size:11px;color:var(--muted);margin-bottom:14px;margin-top:-10px;}
+
+/* circus add modal */
+.modal.circus-modal h2{color:var(--orange);}
 </style>
 </head>
 <body>
@@ -174,6 +209,7 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
   <div class="tab active" id="tab-roster" onclick="showPage('roster')">Roster</div>
   <div class="tab" id="tab-sessions" onclick="showPage('sessions')">Sessions</div>
   <div class="tab" id="tab-reports" onclick="showPage('reports')">Reports</div>
+  <div class="tab circus-tab" id="tab-circus" onclick="showPage('circus')">🎪 Circus</div>
 </div>
 
 <!-- ══ ROSTER ══ -->
@@ -206,9 +242,10 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
       <th class="sort-col" onclick="sortBy('position')">Position <span id="sa-position">↕</span></th>
       <th class="sort-col" onclick="sortBy('level')">Level <span id="sa-level">↕</span></th>
       <th class="sort-col" onclick="sortBy('group_name')">Group <span id="sa-group_name">↕</span></th>
+      <th>Strikes</th>
       <th></th>
     </tr></thead>
-    <tbody id="roster-body"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+    <tbody id="roster-body"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody>
   </table>
 </div>
 
@@ -257,9 +294,9 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
       <thead><tr>
         <th>Player</th><th>Level</th><th>Group</th><th>Position</th>
         <th>Present</th><th>Absent</th><th>Tardy</th><th>Injured</th>
-        <th>Rate</th><th class="rpt-dates-col">Absent / Notable Dates</th>
+        <th>Strikes</th><th>Rate</th><th class="rpt-dates-col">Absent / Notable Dates</th>
       </tr></thead>
-      <tbody id="rpt-body"><tr><td colspan="10" class="empty">No data yet.</td></tr></tbody>
+      <tbody id="rpt-body"><tr><td colspan="11" class="empty">No data yet.</td></tr></tbody>
     </table>
   </div>
   <div style="margin-top:16px">
@@ -267,7 +304,62 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
   </div>
 </div>
 
-<!-- ══ MODAL ══ -->
+<!-- ══ CIRCUS ══ -->
+<div id="page-circus" class="page container">
+  <div class="circus-banner">
+    <div class="circus-banner-icon">🎪</div>
+    <div class="circus-banner-text">
+      <h3>Circus Makeups</h3>
+      <p>3 strikes (absences + tardies) = circus required · 3 makeups = cleared &amp; reset</p>
+    </div>
+  </div>
+
+  <div class="row">
+    <button class="btn-orange" onclick="openCircusAdd()">+ Add Manually</button>
+    <button class="btn-gh" onclick="syncCircus()">↻ Sync from Attendance</button>
+    <select id="circus-filter" onchange="renderCircus()">
+      <option value="">All Levels</option>
+      <option>Freshman</option><option>JV</option><option>Varsity</option>
+    </select>
+  </div>
+
+  <div class="stat-grid" id="circus-stats"></div>
+
+  <!-- Active Circus List -->
+  <p class="section-title">On Circus Now</p>
+  <div style="overflow-x:auto;margin-bottom:28px;">
+    <table class="tbl" id="circus-active-tbl">
+      <thead><tr>
+        <th>Player</th>
+        <th>Level</th>
+        <th class="hide-mobile">Group</th>
+        <th>Strikes</th>
+        <th>Makeups Done</th>
+        <th>Added By</th>
+        <th></th>
+      </tr></thead>
+      <tbody id="circus-active-body"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- History / All-time completions -->
+  <p class="section-title">Completion History</p>
+  <div style="overflow-x:auto;">
+    <table class="tbl">
+      <thead><tr>
+        <th>Player</th>
+        <th>Level</th>
+        <th class="hide-mobile">Group</th>
+        <th>Total Completed Rounds</th>
+        <th>Current Strikes</th>
+        <th>Status</th>
+      </tr></thead>
+      <tbody id="circus-history-body"><tr><td colspan="6" class="empty">No history yet.</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══ PLAYER MODAL ══ -->
 <div class="overlay" id="modal">
   <div class="modal">
     <h2 id="modal-title">Add Player</h2>
@@ -289,6 +381,23 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
   </div>
 </div>
 
+<!-- ══ CIRCUS ADD MODAL ══ -->
+<div class="overlay" id="circus-modal">
+  <div class="modal circus-modal">
+    <h2>Add to Circus</h2>
+    <div class="mf"><label>Player *</label>
+      <select id="cm-player"><option value="">— Select Player —</option></select>
+    </div>
+    <div class="mf"><label>Reason (optional)</label>
+      <input type="text" id="cm-reason" placeholder="e.g. Major offense, Coach discretion…">
+    </div>
+    <div class="m-actions">
+      <button class="btn-gh" onclick="closeCircusModal()">Cancel</button>
+      <button class="btn-orange" onclick="saveCircusAdd()">Add to Circus</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -296,29 +405,35 @@ const SURL = 'https://syvpccbceajxzrhqumks.supabase.co';
 const SKEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5dnBjY2JjZWFqeHpyaHF1bWtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNTM5MTcsImV4cCI6MjA4ODcyOTkxN30.3nwWP0EtG9Vl-ZSPJlY4C7k2oGl-zUYIZjWAmvvFDmg';
 const db = supabase.createClient(SURL, SKEY);
 
-let players = [], sessions = [], attendance = [];
+let players = [], sessions = [], attendance = [], circusRecords = [], circusHistory = [];
 let rSort = { col:'name', dir:1 };
 let sessFilter = 'all';
 
 // ── Init ──
 async function init() {
   try {
-    const [p, s, a] = await Promise.all([
+    const [p, s, a, c, ch] = await Promise.all([
       db.from('players').select('*').order('name'),
       db.from('practices').select('*').order('date', { ascending: false }),
-      db.from('attendance').select('*')
+      db.from('attendance').select('*'),
+      db.from('circus').select('*'),
+      db.from('circus_history').select('*')
     ]);
     if (p.error) throw p.error;
     if (s.error) throw s.error;
     if (a.error) throw a.error;
+    // circus tables might not exist yet — handle gracefully
     players    = p.data || [];
     sessions   = s.data || [];
     attendance = a.data || [];
+    circusRecords  = c.error ? [] : (c.data || []);
+    circusHistory  = ch.error ? [] : (ch.data || []);
     setStatus('● Connected', 'var(--green)');
     refreshPosFilter();
     renderRoster();
     renderSessions();
     renderReports();
+    renderCircus();
     document.getElementById('s-date').valueAsDate = new Date();
   } catch(e) {
     setStatus('● Error — check console', 'var(--red)');
@@ -333,12 +448,278 @@ function setStatus(t, c) {
 
 // ── Page nav ──
 function showPage(name) {
-  ['roster','sessions','reports'].forEach(function(n) {
+  ['roster','sessions','reports','circus'].forEach(function(n) {
     document.getElementById('page-' + n).classList.toggle('active', n === name);
     document.getElementById('tab-' + n).classList.toggle('active', n === name);
   });
   if (name === 'reports') renderReports();
+  if (name === 'circus')  renderCircus();
 }
+
+// ── Strike Calculator ──
+// Returns current net strikes for a player.
+// Each absence or tardy = 1 strike. Cap at 3. Resets are stored in circus_history.
+function getStrikes(playerId) {
+  // Count total absences + tardies across all sessions
+  var total = attendance.filter(function(a) {
+    return a.player_id === playerId && (a.status === 'absent' || a.status === 'tardy');
+  }).length;
+
+  // Count completed circus rounds (each round = 3 strikes cleared)
+  var completedRounds = circusHistory.filter(function(h) {
+    return h.player_id === playerId;
+  }).length;
+
+  // Net strikes = total - (rounds * 3), capped at 3, floored at 0
+  var net = total - (completedRounds * 3);
+  if (net < 0) net = 0;
+  if (net > 3) net = 3;
+  return net;
+}
+
+// Returns total career absences+tardies
+function getTotalStrikes(playerId) {
+  return attendance.filter(function(a) {
+    return a.player_id === playerId && (a.status === 'absent' || a.status === 'tardy');
+  }).length;
+}
+
+// ── Circus Sync ──
+// Auto-adds players who have 3 strikes and aren't already on the list
+async function syncCircus() {
+  var added = 0;
+  var toInsert = [];
+
+  players.forEach(function(p) {
+    var strikes = getStrikes(p.id);
+    var alreadyOn = circusRecords.find(function(c) { return c.player_id === p.id; });
+    if (strikes >= 3 && !alreadyOn) {
+      toInsert.push({ player_id: p.id, makeups: 0, added_manually: false });
+    }
+  });
+
+  if (!toInsert.length) {
+    toast('All caught up — no new circus additions');
+    renderCircus();
+    return;
+  }
+
+  var res = await db.from('circus').insert(toInsert).select();
+  if (res.error) { toast('Error: ' + res.error.message); return; }
+  circusRecords = circusRecords.concat(res.data || []);
+  added = toInsert.length;
+  toast('✓ Added ' + added + ' player(s) to circus');
+  renderCircus();
+  renderRoster();
+}
+
+// ── Makeup Tracking ──
+async function setMakeup(circusId, newCount) {
+  var rec = circusRecords.find(function(c) { return c.id === circusId; });
+  if (!rec) return;
+
+  if (newCount >= 3) {
+    // Completed! Archive to history, remove from active circus, reset
+    if (!confirm(getPlayerName(rec.player_id) + ' has completed all 3 makeups. Clear them from circus?')) return;
+
+    // Add to history
+    var histRes = await db.from('circus_history').insert({
+      player_id: rec.player_id,
+      completed_at: new Date().toISOString()
+    }).select().single();
+
+    if (histRes.error) { toast('Error saving history: ' + histRes.error.message); return; }
+    circusHistory.push(histRes.data);
+
+    // Remove from active circus
+    await db.from('circus').delete().eq('id', circusId);
+    circusRecords = circusRecords.filter(function(c) { return c.id !== circusId; });
+
+    toast('🎉 ' + getPlayerName(rec.player_id) + ' completed circus — strikes reset!');
+    renderCircus();
+    renderRoster();
+    renderReports();
+    return;
+  }
+
+  // Just update makeup count
+  rec.makeups = newCount;
+  db.from('circus').update({ makeups: newCount }).eq('id', circusId);
+  renderCircus();
+  toast('Makeup updated ✓');
+}
+
+function getPlayerName(playerId) {
+  var p = players.find(function(x) { return x.id === playerId; });
+  return p ? p.name : 'Unknown';
+}
+
+// ── Remove from Circus manually ──
+async function removeFromCircus(circusId) {
+  if (!confirm('Remove this player from circus? (Strikes are NOT reset)')) return;
+  await db.from('circus').delete().eq('id', circusId);
+  circusRecords = circusRecords.filter(function(c) { return c.id !== circusId; });
+  toast('Removed from circus');
+  renderCircus();
+  renderRoster();
+}
+
+// ── Circus Render ──
+function renderCircus() {
+  var lvlFilter = document.getElementById('circus-filter').value;
+
+  var activeRecords = circusRecords.filter(function(c) {
+    var p = players.find(function(x) { return x.id === c.player_id; });
+    if (!p) return false;
+    if (lvlFilter && p.level !== lvlFilter) return false;
+    return true;
+  });
+
+  // Stats
+  var totalOn = activeRecords.length;
+  var totalCompleted = circusHistory.filter(function(h) {
+    if (!lvlFilter) return true;
+    var p = players.find(function(x) { return x.id === h.player_id; });
+    return p && p.level === lvlFilter;
+  }).length;
+  var nearClear = activeRecords.filter(function(c) { return c.makeups === 2; }).length;
+
+  document.getElementById('circus-stats').innerHTML =
+    '<div class="stat-card"><div class="stat-lbl">On Circus</div><div class="stat-val" style="color:var(--orange)">' + totalOn + '</div><div class="stat-sub">active makeups needed</div></div>' +
+    '<div class="stat-card"><div class="stat-lbl">Completed</div><div class="stat-val" style="color:var(--green)">' + totalCompleted + '</div><div class="stat-sub">total rounds cleared</div></div>' +
+    '<div class="stat-card"><div class="stat-lbl">Almost Done</div><div class="stat-val" style="color:var(--amber)">' + nearClear + '</div><div class="stat-sub">2/3 makeups done</div></div>';
+
+  // Active table
+  var tb = document.getElementById('circus-active-body');
+  if (!activeRecords.length) {
+    tb.innerHTML = '<tr><td colspan="7" class="empty">No players currently on circus 🎉</td></tr>';
+  } else {
+    tb.innerHTML = activeRecords.map(function(c) {
+      var p = players.find(function(x) { return x.id === c.player_id; });
+      if (!p) return '';
+      var strikes = getStrikes(p.id);
+
+      // Strike pips
+      var strikePips = [1,2,3].map(function(i) {
+        var cls = 'strike-pip' + (i <= strikes ? (strikes >= 3 ? ' danger' : ' active') : '');
+        return '<div class="' + cls + '"></div>';
+      }).join('');
+
+      // Makeup dots — clicking fills/unfills
+      var dots = [1,2,3].map(function(i) {
+        var filled = i <= c.makeups;
+        return '<div class="dot' + (filled ? ' filled' : '') + '" onclick="setMakeup(\'' + c.id + '\',' + i + ')" title="Mark ' + i + ' makeup(s)"></div>';
+      }).join('');
+
+      var addedBy = c.added_manually
+        ? '<span class="b b-manual">Manual</span>'
+        : '<span class="b bi">Auto</span>';
+
+      return '<tr>' +
+        '<td><strong>' + esc(p.name) + '</strong></td>' +
+        '<td>' + lvlBadge(p.level) + '</td>' +
+        '<td class="hide-mobile">' + grpBadge(p.group_name) + '</td>' +
+        '<td><div class="strike-meter">' + strikePips + '</div></td>' +
+        '<td>' +
+          '<div style="display:flex;align-items:center;gap:10px;">' +
+            '<div class="makeup-dots">' + dots + '</div>' +
+            '<span style="font-size:11px;color:var(--muted)">' + c.makeups + '/3</span>' +
+          '</div>' +
+        '</td>' +
+        '<td>' + addedBy + '</td>' +
+        '<td><button class="btn-del" onclick="removeFromCircus(\'' + c.id + '\')">Remove</button></td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  // History table — show all players who have ever completed circus
+  var historyMap = {};
+  circusHistory.forEach(function(h) {
+    if (!historyMap[h.player_id]) historyMap[h.player_id] = 0;
+    historyMap[h.player_id]++;
+  });
+
+  var histPlayers = players.filter(function(p) {
+    if (lvlFilter && p.level !== lvlFilter) return false;
+    return historyMap[p.id] || getTotalStrikes(p.id) > 0;
+  });
+
+  var hb = document.getElementById('circus-history-body');
+  if (!histPlayers.length) {
+    hb.innerHTML = '<tr><td colspan="6" class="empty">No history yet.</td></tr>';
+  } else {
+    hb.innerHTML = histPlayers
+      .sort(function(a,b) { return (historyMap[b.id]||0) - (historyMap[a.id]||0); })
+      .map(function(p) {
+        var rounds = historyMap[p.id] || 0;
+        var strikes = getStrikes(p.id);
+        var onCircus = circusRecords.find(function(c) { return c.player_id === p.id; });
+        var statusBadge = onCircus
+          ? '<span class="b b-strike">On Circus</span>'
+          : strikes >= 3
+            ? '<span class="b br">Needs Circus</span>'
+            : strikes > 0
+              ? '<span class="b ba">' + strikes + ' Strike' + (strikes>1?'s':'') + '</span>'
+              : '<span class="b b-clear">Clear</span>';
+
+        return '<tr>' +
+          '<td>' + esc(p.name) + '</td>' +
+          '<td>' + lvlBadge(p.level) + '</td>' +
+          '<td class="hide-mobile">' + grpBadge(p.group_name) + '</td>' +
+          '<td><span style="font-family:\'Bebas Neue\',sans-serif;font-size:20px;color:var(--orange)">' + rounds + '</span></td>' +
+          '<td>' +
+            '<div class="strike-meter" style="gap:4px">' +
+              [1,2,3].map(function(i) {
+                return '<div class="strike-pip' + (i<=strikes?(strikes>=3?' danger':' active'):'') + '"></div>';
+              }).join('') +
+            '</div>' +
+          '</td>' +
+          '<td>' + statusBadge + '</td>' +
+        '</tr>';
+      }).join('');
+  }
+}
+
+// ── Circus Manual Add Modal ──
+function openCircusAdd() {
+  var sel = document.getElementById('cm-player');
+  // only show players NOT already on circus
+  var available = players.filter(function(p) {
+    return !circusRecords.find(function(c) { return c.player_id === p.id; });
+  });
+  sel.innerHTML = '<option value="">— Select Player —</option>' +
+    available.map(function(p) {
+      return '<option value="' + p.id + '">' + esc(p.name) + (p.level ? ' (' + p.level + ')' : '') + '</option>';
+    }).join('');
+  document.getElementById('cm-reason').value = '';
+  document.getElementById('circus-modal').classList.add('open');
+}
+
+function closeCircusModal() {
+  document.getElementById('circus-modal').classList.remove('open');
+}
+
+async function saveCircusAdd() {
+  var playerId = document.getElementById('cm-player').value;
+  if (!playerId) { toast('Select a player'); return; }
+
+  var res = await db.from('circus').insert({
+    player_id: playerId,
+    makeups: 0,
+    added_manually: true
+  }).select().single();
+
+  if (res.error) { toast('Error: ' + res.error.message); return; }
+  circusRecords.push(res.data);
+  closeCircusModal();
+  toast('✓ Added to circus');
+  renderCircus();
+  renderRoster();
+}
+
+document.getElementById('circus-modal').addEventListener('click', function(e) {
+  if (e.target === e.currentTarget) closeCircusModal();
+});
 
 // ── Roster ──
 function refreshPosFilter() {
@@ -379,10 +760,23 @@ function renderRoster() {
 
   var tb = document.getElementById('roster-body');
   if (!list.length) {
-    tb.innerHTML = '<tr><td colspan="7" class="empty">No players match filters.</td></tr>';
+    tb.innerHTML = '<tr><td colspan="8" class="empty">No players match filters.</td></tr>';
     return;
   }
   tb.innerHTML = list.map(function(p) {
+    var strikes = getStrikes(p.id);
+    var onCircus = circusRecords.find(function(c) { return c.player_id === p.id; });
+    var strikeBadge;
+    if (onCircus) {
+      strikeBadge = '<span class="b b-strike">Circus</span>';
+    } else if (strikes >= 3) {
+      strikeBadge = '<span class="b br">3 ⚡</span>';
+    } else if (strikes > 0) {
+      strikeBadge = '<span class="b ba">' + strikes + ' strike' + (strikes>1?'s':'') + '</span>';
+    } else {
+      strikeBadge = '<span style="color:var(--muted);font-size:11px">—</span>';
+    }
+
     return '<tr>' +
       '<td>' + esc(p.name) + '</td>' +
       '<td class="hide-mobile">' + (p.grade || dash()) + '</td>' +
@@ -390,6 +784,7 @@ function renderRoster() {
       '<td>' + (p.position || dash()) + '</td>' +
       '<td>' + lvlBadge(p.level) + '</td>' +
       '<td>' + grpBadge(p.group_name) + '</td>' +
+      '<td>' + strikeBadge + '</td>' +
       '<td style="display:flex;gap:6px;justify-content:flex-end">' +
         '<button class="btn-edit" onclick="openEdit(\'' + p.id + '\')">Edit</button>' +
         '<button class="btn-del" onclick="delPlayer(\'' + p.id + '\')">Remove</button>' +
@@ -469,8 +864,10 @@ async function delPlayer(id) {
   await db.from('players').delete().eq('id', id);
   players    = players.filter(function(p){ return p.id !== id; });
   attendance = attendance.filter(function(a){ return a.player_id !== id; });
+  circusRecords = circusRecords.filter(function(c){ return c.player_id !== id; });
+  circusHistory = circusHistory.filter(function(h){ return h.player_id !== id; });
   refreshPosFilter();
-  renderRoster(); renderSessions(); renderReports();
+  renderRoster(); renderSessions(); renderReports(); renderCircus();
 }
 
 // ── CSV Import ──
@@ -528,7 +925,6 @@ function setFilter(val) {
 }
 
 function renderSessions() {
-  // remember which sessions are open so we restore them after re-render
   var openIds = {};
   sessions.forEach(function(s) {
     var b = document.getElementById('sb-' + s.id);
@@ -587,7 +983,6 @@ function renderSessions() {
     '</div>';
   }).join('');
 
-  // restore open sessions
   Object.keys(openIds).forEach(function(id) {
     var body = document.getElementById('sb-' + id);
     var chev = document.getElementById('chev-' + id);
@@ -609,12 +1004,10 @@ async function addSession() {
   var notes = document.getElementById('s-notes').value.trim();
   if (!date) { toast('Pick a date'); return; }
 
-  // Check if a session with same date + type already exists
   var existing = sessions.find(function(s){ return s.date === date && s.label === type; });
   if (existing) {
     document.getElementById('s-notes').value = '';
     renderSessions();
-    // scroll to and open the existing session
     setTimeout(function() {
       var card = document.getElementById('sb-' + existing.id);
       var chev = document.getElementById('chev-' + existing.id);
@@ -642,24 +1035,20 @@ async function delSession(id) {
   await db.from('practices').delete().eq('id', id);
   sessions   = sessions.filter(function(s){ return s.id !== id; });
   attendance = attendance.filter(function(a){ return a.practice_id !== id; });
-  renderSessions(); renderReports();
+  renderSessions(); renderReports(); renderCircus();
 }
 
 async function setAtt(sessionId, playerId, status) {
   var existing = attendance.find(function(a){ return a.practice_id === sessionId && a.player_id === playerId; });
   if (existing) {
     if (existing.status === status) return;
-    // update local state immediately so UI reflects change at once
     existing.status = status;
-    renderSessions(); renderReports();
-    // then save to DB in background
+    renderSessions(); renderReports(); renderRoster(); renderCircus();
     db.from('attendance').update({ status: status }).eq('id', existing.id);
   } else {
-    // optimistically add to local state right away
     var tempRecord = { id: 'temp-' + Date.now(), practice_id: sessionId, player_id: playerId, status: status };
     attendance.push(tempRecord);
-    renderSessions(); renderReports();
-    // save to DB and replace temp record with real one
+    renderSessions(); renderReports(); renderRoster(); renderCircus();
     var r2 = await db.from('attendance').insert({ practice_id: sessionId, player_id: playerId, status: status }).select().single();
     if (r2.data) {
       var idx = attendance.indexOf(tempRecord);
@@ -697,7 +1086,7 @@ function renderReports() {
     '<div class="stat-card"><div class="stat-lbl">Injured</div><div class="stat-val" style="color:var(--blue)">' + totI + '</div><div class="stat-sub">total instances</div></div>';
 
   if (!fp.length) {
-    document.getElementById('rpt-body').innerHTML = '<tr><td colspan="10" class="empty">No players match filters.</td></tr>';
+    document.getElementById('rpt-body').innerHTML = '<tr><td colspan="11" class="empty">No players match filters.</td></tr>';
     return;
   }
 
@@ -708,6 +1097,16 @@ function renderReports() {
     var tardy   = myAtt.filter(function(a){ return a.status==='tardy'; }).length;
     var injured = myAtt.filter(function(a){ return a.status==='injured'; }).length;
     var r = fs.length ? Math.round(present / fs.length * 100) : 0;
+    var strikes = getStrikes(p.id);
+    var onCircus = circusRecords.find(function(c){ return c.player_id === p.id; });
+
+    var strikeBadge = onCircus
+      ? '<span class="b b-strike">🎪 Circus</span>'
+      : strikes >= 3
+        ? '<span class="b br">3 ⚡</span>'
+        : strikes > 0
+          ? '<span class="b ba">' + strikes + '</span>'
+          : '<span style="color:var(--muted);font-size:11px">—</span>';
 
     var notable = myAtt
       .filter(function(a){ return a.status==='absent'||a.status==='tardy'||a.status==='injured'; })
@@ -727,7 +1126,7 @@ function renderReports() {
       return '<span class="chip ' + cls + '">' + prefix + d.label + ' ' + lbl + '</span>';
     }).join('');
 
-    return { p:p, present:present, absent:absent, tardy:tardy, injured:injured, rate:r, chips:chips };
+    return { p:p, present:present, absent:absent, tardy:tardy, injured:injured, rate:r, chips:chips, strikeBadge:strikeBadge };
   }).sort(function(a,b){ return b.rate - a.rate; });
 
   document.getElementById('rpt-body').innerHTML = rows.map(function(row) {
@@ -742,6 +1141,7 @@ function renderReports() {
       '<td><span class="b br">' + row.absent + '</span></td>' +
       '<td><span class="b ba">' + row.tardy + '</span></td>' +
       '<td><span class="b bi">' + row.injured + '</span></td>' +
+      '<td>' + row.strikeBadge + '</td>' +
       '<td>' + bar + '</td>' +
       '<td><div class="chips">' + (row.chips || '<span style="color:var(--muted);font-size:11px">—</span>') + '</div></td>' +
     '</tr>';
@@ -750,12 +1150,13 @@ function renderReports() {
 
 // ── Export ──
 function exportCSV() {
-  var headers = ['Player','Grade','Period','Position','Level','Group'].concat(
+  var headers = ['Player','Grade','Period','Position','Level','Group','Strikes','OnCircus'].concat(
     sessions.map(function(s){ return s.label + ' ' + s.date; })
   );
   var rows = [headers];
   players.forEach(function(p) {
-    var row = [p.name, p.grade||'', p.period||'', p.position||'', p.level||'', p.group_name||''];
+    var onCircus = circusRecords.find(function(c){ return c.player_id===p.id; }) ? 'Yes' : 'No';
+    var row = [p.name, p.grade||'', p.period||'', p.position||'', p.level||'', p.group_name||'', getStrikes(p.id), onCircus];
     sessions.forEach(function(s) {
       var rec = attendance.find(function(a){ return a.player_id===p.id && a.practice_id===s.id; });
       row.push(rec ? rec.status : 'unmarked');
