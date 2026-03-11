@@ -88,6 +88,8 @@ button{padding:9px 16px;border-radius:6px;border:none;font-family:inherit;font-s
 .b-strike{background:#2a1500;color:var(--orange);}
 .b-clear{background:#0d2a0d;color:var(--green);}
 .b-manual{background:#1a0a2a;color:var(--purple);}
+.b-inactive{background:#1e1e1e;color:var(--muted);}
+.b-active{background:#0d2a0d;color:var(--green);}
 
 /* attendance toggle */
 .tog{display:flex;border-radius:5px;overflow:hidden;border:1px solid var(--border);width:fit-content;}
@@ -229,6 +231,11 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
     <select id="r-pos" onchange="renderRoster()">
       <option value="">All Positions</option>
     </select>
+    <select id="r-active" onchange="renderRoster()">
+      <option value="active">Active Only</option>
+      <option value="inactive">Inactive Only</option>
+      <option value="">All Players</option>
+    </select>
     <button class="btn-g" onclick="openAdd()">+ Add Player</button>
     <button class="btn-gh" onclick="document.getElementById('csv-in').click()">⬆ CSV</button>
     <input type="file" id="csv-in" accept=".csv" style="display:none" onchange="importCSV(event)">
@@ -243,9 +250,10 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
       <th class="sort-col" onclick="sortBy('level')">Level <span id="sa-level">↕</span></th>
       <th class="sort-col" onclick="sortBy('group_name')">Group <span id="sa-group_name">↕</span></th>
       <th>Strikes</th>
+      <th>Status</th>
       <th></th>
     </tr></thead>
-    <tbody id="roster-body"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody>
+    <tbody id="roster-body"><tr><td colspan="9" class="empty">Loading…</td></tr></tbody>
   </table>
 </div>
 
@@ -371,6 +379,9 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
     </div>
     <div class="mf"><label>Group</label>
       <select id="f-group"><option value="">— Select —</option><option value="AM">AM</option><option value="PM">PM</option></select>
+    </div>
+    <div class="mf"><label>Status</label>
+      <select id="f-active"><option value="true">Active</option><option value="false">Inactive</option></select>
     </div>
     <div class="m-actions">
       <button class="btn-gh" onclick="closeModal()">Cancel</button>
@@ -498,6 +509,7 @@ async function syncCircus() {
   var toInsert = [];
 
   players.forEach(function(p) {
+    if (p.active === false) return;
     var strikes = getStrikes(p.id);
     var alreadyOn = circusRecords.find(function(c) { return c.player_id === p.id; });
     if (isDueForCircus(p.id) && !alreadyOn) {
@@ -729,11 +741,14 @@ function renderRoster() {
   var group  = document.getElementById('r-group').value;
   var pos    = document.getElementById('r-pos').value;
 
+  var activeFilter = document.getElementById('r-active').value;
   var list = players.filter(function(p) {
     if (search && p.name.toLowerCase().indexOf(search) === -1) return false;
     if (level && p.level !== level) return false;
     if (group && p.group_name !== group) return false;
     if (pos && p.position !== pos) return false;
+    if (activeFilter === 'active' && p.active === false) return false;
+    if (activeFilter === 'inactive' && p.active !== false) return false;
     return true;
   });
 
@@ -777,9 +792,14 @@ function renderRoster() {
       '<td>' + lvlBadge(p.level) + '</td>' +
       '<td>' + grpBadge(p.group_name) + '</td>' +
       '<td>' + strikeBadge + '</td>' +
+      '<td>' +
+        (p.active === false
+          ? '<button class="btn-gh" style="font-size:11px;padding:4px 10px" onclick="toggleActive(\'' + p.id + '\',true)">Set Active</button>'
+          : '<button class="btn-del" style="color:var(--muted);border-color:#1e1e1e;font-size:11px;padding:4px 10px" onclick="toggleActive(\'' + p.id + '\',false)">Set Inactive</button>') +
+      '</td>' +
       '<td style="display:flex;gap:6px;justify-content:flex-end">' +
-        '<button class="btn-edit" onclick="openEdit(\'' + p.id + '\')">Edit</button>' +
-        '<button class="btn-del" onclick="delPlayer(\'' + p.id + '\')">Remove</button>' +
+        '<button class="btn-edit" onclick="openEdit(\'' + p.id + \'\')">' + 'Edit</button>' +
+        '<button class="btn-del" onclick="delPlayer(\'' + p.id + \'\')">' + 'Remove</button>' +
       '</td></tr>';
   }).join('');
 }
@@ -797,6 +817,7 @@ function openAdd() {
   ['f-name','f-grade','f-period','f-pos'].forEach(function(id){ document.getElementById(id).value = ''; });
   document.getElementById('f-level').value = '';
   document.getElementById('f-group').value = '';
+  document.getElementById('f-active').value = 'true';
   document.getElementById('modal').classList.add('open');
   setTimeout(function(){ document.getElementById('f-name').focus(); }, 50);
 }
@@ -812,6 +833,7 @@ function openEdit(id) {
   document.getElementById('f-pos').value   = p.position || '';
   document.getElementById('f-level').value = p.level || '';
   document.getElementById('f-group').value = p.group_name || '';
+  document.getElementById('f-active').value = p.active === false ? 'false' : 'true';
   document.getElementById('modal').classList.add('open');
 }
 
@@ -829,6 +851,7 @@ async function savePlayer() {
     position:   document.getElementById('f-pos').value.trim() || null,
     level:      document.getElementById('f-level').value || null,
     group_name: document.getElementById('f-group').value || null,
+    active:     document.getElementById('f-active').value !== 'false',
   };
   if (!payload.name) { toast('Name is required'); return; }
 
@@ -849,6 +872,15 @@ async function savePlayer() {
   refreshPosFilter();
   renderRoster();
   renderReports();
+}
+
+async function toggleActive(id, isActive) {
+  var res = await db.from('players').update({ active: isActive }).eq('id', id);
+  if (res.error) { toast('Error: ' + res.error.message); return; }
+  var p = players.find(function(x){ return x.id === id; });
+  if (p) p.active = isActive;
+  toast(isActive ? 'Player set to Active ✓' : 'Player set to Inactive ✓');
+  renderRoster(); renderSessions(); renderReports(); renderCircus();
 }
 
 async function delPlayer(id) {
@@ -935,7 +967,7 @@ function renderSessions() {
     var nInjured  = att.filter(function(a){ return a.status === 'injured'; }).length;
     var tc = s.label === 'AM' ? 'b-am' : 'b-pm';
 
-    var rows = players.map(function(p) {
+    var rows = players.filter(function(p){ return p.active !== false; }).map(function(p) {
       var rec = att.find(function(a){ return a.player_id === p.id; });
       var status = rec ? rec.status : null;
       return '<tr>' +
@@ -1055,7 +1087,7 @@ function renderReports() {
   var grp  = document.getElementById('rpt-group').value;
   var st   = document.getElementById('rpt-sess').value;
 
-  var fp = players.filter(function(p){ return (!lvl || p.level===lvl) && (!grp || p.group_name===grp); });
+  var fp = players.filter(function(p){ return p.active !== false && (!lvl || p.level===lvl) && (!grp || p.group_name===grp); });
   var fs = sessions.filter(function(s){ return !st || s.label===st; });
 
   var totP = 0, totA = 0, totT = 0, totI = 0;
