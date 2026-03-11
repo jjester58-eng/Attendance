@@ -1140,7 +1140,11 @@ function renderSessions() {
     var nInjured  = att.filter(function(a){ return a.status === 'injured'; }).length;
     var tc = s.label === 'AM' ? 'b-am' : 'b-pm';
 
-    var rows = players.filter(function(p){ return p.active !== false && p.active !== 'false'; }).map(function(p) {
+    var rows = players.filter(function(p){
+      if (p.active === false || p.active === 'false') return false;
+      if (p.group_name && p.group_name !== s.label) return false;
+      return true;
+    }).map(function(p) {
       var rec = att.find(function(a){ return a.player_id === p.id; });
       var status = rec ? rec.status : null;
       return '<tr>' +
