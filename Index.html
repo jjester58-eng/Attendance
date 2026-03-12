@@ -124,6 +124,8 @@ button{padding:9px 16px;border-radius:6px;border:none;font-family:inherit;font-s
 .tog button.on-a{background:#2a0d0d;color:var(--red);}
 .tog button.on-t{background:#2a1a00;color:var(--amber);}
 .tog button.on-i{background:#0d1a2a;color:var(--blue);}
+.tog button.on-e{background:#0d2a1a;color:var(--green);}
+.b-excused{background:#0d2a1a;color:#80cbc4;}
 
 /* session cards */
 .s-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:14px;overflow:hidden;}
@@ -177,6 +179,7 @@ button{padding:9px 16px;border-radius:6px;border:none;font-family:inherit;font-s
 .chip-a{background:#2a0d0d;color:#ff6b6b;}
 .chip-t{background:#2a1a00;color:var(--amber);}
 .chip-i{background:#0d1a2a;color:var(--blue);}
+.chip-e{background:#0d2a1a;color:#80cbc4;}
 
 /* modal */
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;align-items:center;justify-content:center;}
@@ -208,14 +211,14 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
 </header>
 
 <div class="tabs">
-  <div class="tab active" id="tab-roster" onclick="showPage('roster')">Roster</div>
-  <div class="tab" id="tab-sessions" onclick="showPage('sessions')">Sessions</div>
-  <div class="tab" id="tab-reports" onclick="showPage('reports')">Reports</div>
+  <div class="tab active" id="tab-sessions" onclick="showPage('sessions')">Practice</div>
   <div class="tab circus-tab" id="tab-circus" onclick="showPage('circus')">🎪 Circus</div>
+  <div class="tab" id="tab-reports" onclick="showPage('reports')">Reports</div>
+  <div class="tab" id="tab-roster" onclick="showPage('roster')">Roster</div>
 </div>
 
 <!-- ══ ROSTER ══ -->
-<div id="page-roster" class="page active container">
+<div id="page-roster" class="page container">
   <p class="section-title">Roster</p>
   <div class="row">
     <input type="text" id="r-search" class="grow" placeholder="Search name…" oninput="renderRoster()">
@@ -239,7 +242,8 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
     <button class="btn-g" onclick="openAdd()">+ Add Player</button>
     <button class="btn-gh" onclick="document.getElementById('csv-in').click()">⬆ CSV</button>
     <button class="btn-gh" onclick="fixSplitNames()" title="Merge players where first name ended up in Grade field">🔧 Fix Split Names</button>
-    <button class="btn-del" style="margin-left:auto" onclick="openNewSeason()">🗑 New Season</button>
+    <button class="btn-gh" style="margin-left:auto" onclick="openStrikeReset()">↺ Reset Strikes</button>
+    <button class="btn-del" onclick="openNewSeason()">🗑 New Season</button>
     <input type="file" id="csv-in" accept=".csv" style="display:none" onchange="importCSV(event)">
   </div>
   <p class="hint">CSV columns: <code>name</code>, <code>grade</code>, <code>period</code>, <code>position</code>, <code>level</code> (Freshman/JV/Varsity), <code>group</code> (AM/PM)</p>
@@ -260,8 +264,8 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
 </div>
 
 <!-- ══ SESSIONS ══ -->
-<div id="page-sessions" class="page container">
-  <p class="section-title">Sessions</p>
+<div id="page-sessions" class="page active container">
+  <p class="section-title">Practice</p>
   <div class="row">
     <input type="date" id="s-date">
     <select id="s-type">
@@ -303,7 +307,7 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
     <table class="tbl">
       <thead><tr>
         <th>Player</th><th>Level</th><th>Group</th><th>Position</th>
-        <th>Present</th><th>Absent</th><th>Tardy</th><th>Injured</th>
+        <th>Present</th><th>Absent</th><th>Tardy</th><th>Injured</th><th>Excused</th>
         <th>Strikes</th><th>Rate</th><th class="rpt-dates-col">Absent / Notable Dates</th>
       </tr></thead>
       <tbody id="rpt-body"><tr><td colspan="11" class="empty">No data yet.</td></tr></tbody>
@@ -409,6 +413,24 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
   </div>
 </div>
 
+<!-- ══ RESET STRIKES MODAL ══ -->
+<div class="overlay" id="reset-modal">
+  <div class="modal">
+    <h2 style="color:var(--amber)">↺ Reset Strikes</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.6">All strike counts reset to 0 as of the selected date. History is preserved — you can still see past absences on each player's record.</p>
+    <div class="mf"><label>Reset Date</label>
+      <input type="date" id="rs-date" style="width:100%">
+    </div>
+    <div class="mf"><label>Reason (optional)</label>
+      <input type="text" id="rs-reason" placeholder="e.g. Christmas Break, Spring Break…">
+    </div>
+    <div class="m-actions">
+      <button class="btn-gh" onclick="closeResetModal()">Cancel</button>
+      <button class="btn-g" style="background:var(--amber)" onclick="runStrikeReset()">Reset All Strikes</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ NEW SEASON MODAL ══ -->
 <div class="overlay" id="season-modal">
   <div class="modal">
@@ -450,7 +472,7 @@ const SURL = 'https://syvpccbceajxzrhqumks.supabase.co';
 const SKEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5dnBjY2JjZWFqeHpyaHF1bWtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNTM5MTcsImV4cCI6MjA4ODcyOTkxN30.3nwWP0EtG9Vl-ZSPJlY4C7k2oGl-zUYIZjWAmvvFDmg';
 const db = supabase.createClient(SURL, SKEY);
 
-let players = [], sessions = [], attendance = [], circusRecords = [], circusHistory = [];
+let players = [], sessions = [], attendance = [], circusRecords = [], circusHistory = [], strikeResets = [];
 let rSort = { col:'name', dir:1 };
 let sessFilter = 'all';
 
@@ -478,6 +500,9 @@ async function init() {
 
     const ch = await db.from('circus_history').select('*');
     circusHistory = ch.error ? [] : (ch.data || []);
+
+    const sr = await db.from('strike_resets').select('*');
+    strikeResets = sr.error ? [] : (sr.data || []);
 
     setStatus('● Connected', 'var(--green)');
     refreshPosFilter();
@@ -510,18 +535,51 @@ function showPage(name) {
 }
 
 // ── Strike Calculator ──
-// Returns current net strikes for a player (no cap — accumulates across rounds).
-// Each absence or tardy = 1 strike. Completed circus rounds clear 3 strikes each.
+// Returns current net strikes for a player.
+// Rule: AM + PM miss on same DATE = 1 strike. Excused = 0 strikes.
+// Strike resets and circus completions both clear strikes.
 function getStrikes(playerId) {
-  var total = attendance.filter(function(a) {
-    return a.player_id === playerId && (a.status === 'absent' || a.status === 'tardy');
-  }).length;
+  // Find the latest reset date for this player (global resets apply to all)
+  var lastReset = null;
+  strikeResets.forEach(function(r) {
+    if (!r.player_id || r.player_id === playerId) {
+      if (!lastReset || r.reset_date > lastReset) lastReset = r.reset_date;
+    }
+  });
 
+  // Only count strikes AFTER the last reset
+  var strikeRecs = attendance.filter(function(a) {
+    if (a.player_id !== playerId) return false;
+    if (a.status !== 'absent' && a.status !== 'tardy') return false;
+    if (lastReset) {
+      var sess = sessions.find(function(s) { return s.id === a.practice_id; });
+      if (sess && sess.date <= lastReset) return false;
+    }
+    return true;
+  });
+
+  // Check if the same date had an excused record — if so, don't count that date
+  var strikeDates = {};
+  strikeRecs.forEach(function(a) {
+    var sess = sessions.find(function(s) { return s.id === a.practice_id; });
+    if (!sess) return;
+    // Check if player has an excused record on the same date
+    var excusedOnDate = attendance.some(function(e) {
+      if (e.player_id !== playerId || e.status !== 'excused') return false;
+      var es = sessions.find(function(s) { return s.id === e.practice_id; });
+      return es && es.date === sess.date;
+    });
+    if (!excusedOnDate) strikeDates[sess.date] = true;
+  });
+  var total = Object.keys(strikeDates).length;
+
+  // Circus completions after the last reset also reduce strikes
   var completedRounds = circusHistory.filter(function(h) {
-    return h.player_id === playerId;
+    if (h.player_id !== playerId) return false;
+    if (lastReset && h.completed_at && h.completed_at.slice(0,10) <= lastReset) return false;
+    return true;
   }).length;
 
-  // Net = total accumulated strikes minus cleared strikes (3 per completed round)
   var net = total - (completedRounds * 3);
   if (net < 0) net = 0;
   return net;
@@ -539,11 +597,23 @@ function isDueForCircus(playerId) {
   return s > 0 && s % 3 === 0;
 }
 
-// Returns total career absences+tardies
+// Returns total career strike DAYS (excludes excused dates)
 function getTotalStrikes(playerId) {
-  return attendance.filter(function(a) {
+  var strikeRecs = attendance.filter(function(a) {
     return a.player_id === playerId && (a.status === 'absent' || a.status === 'tardy');
-  }).length;
+  });
+  var strikeDates = {};
+  strikeRecs.forEach(function(a) {
+    var sess = sessions.find(function(s) { return s.id === a.practice_id; });
+    if (!sess) return;
+    var excusedOnDate = attendance.some(function(e) {
+      if (e.player_id !== playerId || e.status !== 'excused') return false;
+      var es = sessions.find(function(s) { return s.id === e.practice_id; });
+      return es && es.date === sess.date;
+    });
+    if (!excusedOnDate) strikeDates[sess.date] = true;
+  });
+  return Object.keys(strikeDates).length;
 }
 
 // ── Circus Sync ──
@@ -968,6 +1038,34 @@ function looksLikeName(v) {
 
 // ── Fix Split Names (cleanup for Last, First CSV imports) ──
 // ── New Season ──
+// ── Strike Reset ──
+function openStrikeReset() {
+  document.getElementById('rs-date').valueAsDate = new Date();
+  document.getElementById('rs-reason').value = '';
+  document.getElementById('reset-modal').classList.add('open');
+}
+
+function closeResetModal() {
+  document.getElementById('reset-modal').classList.remove('open');
+}
+
+document.getElementById('reset-modal').addEventListener('click', function(e) {
+  if (e.target === e.currentTarget) closeResetModal();
+});
+
+async function runStrikeReset() {
+  var date = document.getElementById('rs-date').value;
+  var reason = document.getElementById('rs-reason').value.trim();
+  if (!date) { toast('Pick a date'); return; }
+  if (!confirm('Reset all strikes as of ' + date + '? History is preserved.')) return;
+  var res = await db.from('strike_resets').insert({ reset_date: date, reason: reason || null }).select().single();
+  if (res.error) { toast('Error: ' + res.error.message); return; }
+  strikeResets.push(res.data);
+  closeResetModal();
+  toast('✓ Strikes reset as of ' + date);
+  renderRoster(); renderReports(); renderCircus();
+}
+
 function openNewSeason() {
   document.getElementById('ns-players').checked = false;
   document.getElementById('ns-sessions').checked = false;
@@ -1157,6 +1255,7 @@ function renderSessions() {
           '<button class="' + (status==='absent' ?'on-a':'') + '" onclick="setAtt(\'' + s.id + '\',\'' + p.id + '\',\'absent\')">Absent</button>' +
           '<button class="' + (status==='tardy'  ?'on-t':'') + '" onclick="setAtt(\'' + s.id + '\',\'' + p.id + '\',\'tardy\')">T</button>' +
           '<button class="' + (status==='injured'?'on-i':'') + '" onclick="setAtt(\'' + s.id + '\',\'' + p.id + '\',\'injured\')">I</button>' +
+          '<button class="' + (status==='excused'?'on-e':'') + '" onclick="setAtt(\'' + s.id + '\',\'' + p.id + '\',\'excused\')">E</button>' +
         '</div></td>' +
       '</tr>';
     }).join('');
@@ -1171,6 +1270,7 @@ function renderSessions() {
           '<span class="b br">' + nAbsent + ' absent</span>' +
           (nTardy ? '<span class="b ba">' + nTardy + ' tardy</span>' : '') +
           (nInjured ? '<span class="b bi">' + nInjured + ' inj</span>' : '') +
+          (att.filter(function(a){ return a.status==='excused'; }).length ? '<span class="b b-excused">' + att.filter(function(a){ return a.status==='excused'; }).length + ' exc</span>' : '') +
         '</span>' +
         '<button class="btn-del" onclick="event.stopPropagation();delSession(\'' + s.id + '\')">Delete</button>' +
         '<span id="chev-' + s.id + '" style="font-size:11px;color:var(--muted)">▾</span>' +
@@ -1267,7 +1367,7 @@ function renderReports() {
   var fp = players.filter(function(p){ return p.active !== false && p.active !== 'false' && (!lvl || p.level===lvl) && (!grp || p.group_name===grp); });
   var fs = sessions.filter(function(s){ return !st || s.label===st; });
 
-  var totP = 0, totA = 0, totT = 0, totI = 0;
+  var totP = 0, totA = 0, totT = 0, totI = 0, totE = 0;
   attendance.forEach(function(a) {
     if (!fp.find(function(p){ return p.id===a.player_id; })) return;
     if (!fs.find(function(s){ return s.id===a.practice_id; })) return;
@@ -1275,6 +1375,7 @@ function renderReports() {
     if (a.status==='absent')  totA++;
     if (a.status==='tardy')   totT++;
     if (a.status==='injured') totI++;
+    if (a.status==='excused') totE++;
   });
   var totalPossible = fs.length * fp.length;
   var rate = totalPossible ? Math.round(totP / totalPossible * 100) : 0;
@@ -1284,10 +1385,11 @@ function renderReports() {
     '<div class="stat-card"><div class="stat-lbl">Sessions</div><div class="stat-val" style="color:var(--green)">' + fs.length + '</div><div class="stat-sub">AM: ' + sessions.filter(function(s){return s.label==='AM';}).length + ' · PM: ' + sessions.filter(function(s){return s.label==='PM';}).length + '</div></div>' +
     '<div class="stat-card"><div class="stat-lbl">Players</div><div class="stat-val" style="color:var(--green)">' + fp.length + '</div><div class="stat-sub">filtered roster</div></div>' +
     '<div class="stat-card"><div class="stat-lbl">Tardy</div><div class="stat-val" style="color:var(--amber)">' + totT + '</div><div class="stat-sub">total instances</div></div>' +
-    '<div class="stat-card"><div class="stat-lbl">Injured</div><div class="stat-val" style="color:var(--blue)">' + totI + '</div><div class="stat-sub">total instances</div></div>';
+    '<div class="stat-card"><div class="stat-lbl">Injured</div><div class="stat-val" style="color:var(--blue)">' + totI + '</div><div class="stat-sub">total instances</div></div>' +
+    '<div class="stat-card"><div class="stat-lbl">Excused</div><div class="stat-val" style="color:#80cbc4">' + totE + '</div><div class="stat-sub">total instances</div></div>';
 
   if (!fp.length) {
-    document.getElementById('rpt-body').innerHTML = '<tr><td colspan="11" class="empty">No players match filters.</td></tr>';
+    document.getElementById('rpt-body').innerHTML = '<tr><td colspan="12" class="empty">No players match filters.</td></tr>';
     return;
   }
 
@@ -1297,6 +1399,7 @@ function renderReports() {
     var absent  = myAtt.filter(function(a){ return a.status==='absent'; }).length;
     var tardy   = myAtt.filter(function(a){ return a.status==='tardy'; }).length;
     var injured = myAtt.filter(function(a){ return a.status==='injured'; }).length;
+    var excused = myAtt.filter(function(a){ return a.status==='excused'; }).length;
     var r = fs.length ? Math.round(present / fs.length * 100) : 0;
     var strikes = getStrikes(p.id);
     var onCircus = circusRecords.find(function(c){ return c.player_id === p.id; });
@@ -1310,7 +1413,7 @@ function renderReports() {
           : '<span style="color:var(--muted);font-size:11px">—</span>';
 
     var notable = myAtt
-      .filter(function(a){ return a.status==='absent'||a.status==='tardy'||a.status==='injured'; })
+      .filter(function(a){ return a.status==='absent'||a.status==='tardy'||a.status==='injured'||a.status==='excused'; })
       .map(function(a) {
         var sess = fs.find(function(s){ return s.id===a.practice_id; });
         return sess ? { date: sess.date, label: sess.label, status: a.status } : null;
@@ -1322,12 +1425,12 @@ function renderReports() {
       var parts = d.date.split('-');
       var dt = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
       var lbl = dt.toLocaleDateString('en-US', { month:'short', day:'numeric' });
-      var cls = d.status==='tardy' ? 'chip-t' : d.status==='injured' ? 'chip-i' : 'chip-a';
-      var prefix = d.status==='tardy' ? 'T ' : d.status==='injured' ? 'I ' : '';
+      var cls = d.status==='tardy' ? 'chip-t' : d.status==='injured' ? 'chip-i' : d.status==='excused' ? 'chip-e' : 'chip-a';
+      var prefix = d.status==='tardy' ? 'T ' : d.status==='injured' ? 'I ' : d.status==='excused' ? 'E ' : '';
       return '<span class="chip ' + cls + '">' + prefix + d.label + ' ' + lbl + '</span>';
     }).join('');
 
-    return { p:p, present:present, absent:absent, tardy:tardy, injured:injured, rate:r, chips:chips, strikeBadge:strikeBadge };
+    return { p:p, present:present, absent:absent, tardy:tardy, injured:injured, excused:excused, rate:r, chips:chips, strikeBadge:strikeBadge };
   }).sort(function(a,b){ return b.rate - a.rate; });
 
   document.getElementById('rpt-body').innerHTML = rows.map(function(row) {
@@ -1342,6 +1445,7 @@ function renderReports() {
       '<td><span class="b br">' + row.absent + '</span></td>' +
       '<td><span class="b ba">' + row.tardy + '</span></td>' +
       '<td><span class="b bi">' + row.injured + '</span></td>' +
+      '<td><span class="b b-excused">' + row.excused + '</span></td>' +
       '<td>' + row.strikeBadge + '</td>' +
       '<td>' + bar + '</td>' +
       '<td><div class="chips">' + (row.chips || '<span style="color:var(--muted);font-size:11px">—</span>') + '</div></td>' +
