@@ -4,13 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Team Attendance</title>
-<!-- Home screen / favicon icon -->
-<link rel="manifest" href="/manifest.json">
-<link rel="icon" type="image/png" href="/icon.png">
-<link rel="apple-touch-icon" href="/icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Attendance">
-<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -346,7 +340,6 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
 
   <div class="stat-grid" id="circus-stats"></div>
 
-  <!-- Active Circus List -->
   <p class="section-title">On Circus Now</p>
   <div style="overflow-x:auto;margin-bottom:28px;">
     <table class="tbl" id="circus-active-tbl">
@@ -363,7 +356,6 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
     </table>
   </div>
 
-  <!-- History / All-time completions -->
   <p class="section-title">Completion History</p>
   <div style="overflow-x:auto;">
     <table class="tbl">
@@ -541,12 +533,36 @@ function showPage(name) {
   if (name === 'circus')  renderCircus();
 }
 
+// ── Helpers ──
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function dash() { return '<span style="color:var(--muted)">—</span>'; }
+function fmtDate(d) {
+  if (!d) return '';
+  var parts = d.split('-');
+  var dt = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+  return dt.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
+}
+function lvlBadge(l) {
+  if (!l) return dash();
+  var cls = l==='Varsity'?'b-var':l==='JV'?'b-jv':l==='Freshman'?'b-fr':'bi';
+  return '<span class="b ' + cls + '">' + esc(l) + '</span>';
+}
+function grpBadge(g) {
+  if (!g) return dash();
+  return '<span class="b ' + (g==='AM'?'b-am':'b-pm') + '">' + esc(g) + '</span>';
+}
+var _toastTimer;
+function toast(msg) {
+  var el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 2800);
+}
+
 // ── Strike Calculator ──
-// Returns current net strikes for a player.
-// Rule: AM + PM miss on same DATE = 1 strike. Excused = 0 strikes.
-// Strike resets and circus completions both clear strikes.
 function getStrikes(playerId) {
-  // Find the latest reset date for this player (global resets apply to all)
   var lastReset = null;
   strikeResets.forEach(function(r) {
     if (!r.player_id || r.player_id === playerId) {
@@ -554,7 +570,6 @@ function getStrikes(playerId) {
     }
   });
 
-  // Only count strikes AFTER the last reset
   var strikeRecs = attendance.filter(function(a) {
     if (a.player_id !== playerId) return false;
     if (a.status !== 'absent' && a.status !== 'tardy') return false;
@@ -565,12 +580,10 @@ function getStrikes(playerId) {
     return true;
   });
 
-  // Check if the same date had an excused record — if so, don't count that date
   var strikeDates = {};
   strikeRecs.forEach(function(a) {
     var sess = sessions.find(function(s) { return s.id === a.practice_id; });
     if (!sess) return;
-    // Check if player has an excused record on the same date
     var excusedOnDate = attendance.some(function(e) {
       if (e.player_id !== playerId || e.status !== 'excused') return false;
       var es = sessions.find(function(s) { return s.id === e.practice_id; });
@@ -580,7 +593,6 @@ function getStrikes(playerId) {
   });
   var total = Object.keys(strikeDates).length;
 
-  // Circus completions after the last reset also reduce strikes
   var completedRounds = circusHistory.filter(function(h) {
     if (h.player_id !== playerId) return false;
     if (lastReset && h.completed_at && h.completed_at.slice(0,10) <= lastReset) return false;
@@ -592,19 +604,15 @@ function getStrikes(playerId) {
   return net;
 }
 
-// Returns how many strikes into the CURRENT 3-strike cycle (0, 1, or 2)
-// Used for pip display — shows progress toward next circus
 function getStrikesInCycle(playerId) {
   return getStrikes(playerId) % 3;
 }
 
-// Returns true if player is at a multiple of 3 (circus due)
 function isDueForCircus(playerId) {
   var s = getStrikes(playerId);
   return s > 0 && s % 3 === 0;
 }
 
-// Returns total career strike DAYS (excludes excused dates)
 function getTotalStrikes(playerId) {
   var strikeRecs = attendance.filter(function(a) {
     return a.player_id === playerId && (a.status === 'absent' || a.status === 'tardy');
@@ -624,14 +632,10 @@ function getTotalStrikes(playerId) {
 }
 
 // ── Circus Sync ──
-// Auto-adds players who have 3 strikes and aren't already on the list
 async function syncCircus() {
-  var added = 0;
   var toInsert = [];
-
   players.forEach(function(p) {
     if (p.active === false || p.active === 'false') return;
-    var strikes = getStrikes(p.id);
     var alreadyOn = circusRecords.find(function(c) { return c.player_id === p.id; });
     if (isDueForCircus(p.id) && !alreadyOn) {
       toInsert.push({ player_id: p.id, makeups: 0, added_manually: false });
@@ -647,8 +651,7 @@ async function syncCircus() {
   var res = await db.from('circus').insert(toInsert).select();
   if (res.error) { toast('Error: ' + res.error.message); return; }
   circusRecords = circusRecords.concat(res.data || []);
-  added = toInsert.length;
-  toast('✓ Added ' + added + ' player(s) to circus');
+  toast('✓ Added ' + toInsert.length + ' player(s) to circus');
   renderCircus();
   renderRoster();
 }
@@ -659,10 +662,8 @@ async function setMakeup(circusId, newCount) {
   if (!rec) return;
 
   if (newCount >= 3) {
-    // Completed! Archive to history, remove from active circus, reset
     if (!confirm(getPlayerName(rec.player_id) + ' has completed all 3 makeups. Clear them from circus?')) return;
 
-    // Add to history
     var histRes = await db.from('circus_history').insert({
       player_id: rec.player_id,
       completed_at: new Date().toISOString()
@@ -671,7 +672,6 @@ async function setMakeup(circusId, newCount) {
     if (histRes.error) { toast('Error saving history: ' + histRes.error.message); return; }
     circusHistory.push(histRes.data);
 
-    // Remove from active circus
     await db.from('circus').delete().eq('id', circusId);
     circusRecords = circusRecords.filter(function(c) { return c.id !== circusId; });
 
@@ -682,7 +682,6 @@ async function setMakeup(circusId, newCount) {
     return;
   }
 
-  // Just update makeup count
   rec.makeups = newCount;
   db.from('circus').update({ makeups: newCount }).eq('id', circusId);
   renderCircus();
@@ -694,7 +693,6 @@ function getPlayerName(playerId) {
   return p ? p.name : 'Unknown';
 }
 
-// ── Remove from Circus manually ──
 async function removeFromCircus(circusId) {
   if (!confirm('Remove this player from circus? (Strikes are NOT reset)')) return;
   await db.from('circus').delete().eq('id', circusId);
@@ -715,7 +713,6 @@ function renderCircus() {
     return true;
   });
 
-  // Stats
   var totalOn = activeRecords.length;
   var totalCompleted = circusHistory.filter(function(h) {
     if (!lvlFilter) return true;
@@ -729,7 +726,6 @@ function renderCircus() {
     '<div class="stat-card"><div class="stat-lbl">Completed</div><div class="stat-val" style="color:var(--green)">' + totalCompleted + '</div><div class="stat-sub">total rounds cleared</div></div>' +
     '<div class="stat-card"><div class="stat-lbl">Almost Done</div><div class="stat-val" style="color:var(--amber)">' + nearClear + '</div><div class="stat-sub">2/3 makeups done</div></div>';
 
-  // Active table
   var tb = document.getElementById('circus-active-body');
   if (!activeRecords.length) {
     tb.innerHTML = '<tr><td colspan="7" class="empty">No players currently on circus 🎉</td></tr>';
@@ -737,18 +733,13 @@ function renderCircus() {
     tb.innerHTML = activeRecords.map(function(c) {
       var p = players.find(function(x) { return x.id === c.player_id; });
       if (!p) return '';
-      var strikes = getStrikes(p.id);
-
-      // Strike pips
       var cyclePos = getStrikesInCycle(p.id);
       var strikePips = [1,2,3].map(function(i) {
-        // cyclePos 0 means they just hit a multiple of 3 (circus due/active)
         var filled = cyclePos === 0 ? 3 : cyclePos;
         var cls = 'strike-pip' + (i <= filled ? (filled >= 3 ? ' danger' : ' active') : '');
         return '<div class="' + cls + '"></div>';
       }).join('');
 
-      // Makeup dots — clicking fills/unfills
       var dots = [1,2,3].map(function(i) {
         var filled = i <= c.makeups;
         return '<div class="dot' + (filled ? ' filled' : '') + '" onclick="setMakeup(\'' + c.id + '\',' + i + ')" title="Mark ' + i + ' makeup(s)"></div>';
@@ -763,19 +754,13 @@ function renderCircus() {
         '<td>' + lvlBadge(p.level) + '</td>' +
         '<td class="hide-mobile">' + grpBadge(p.group_name) + '</td>' +
         '<td><div class="strike-meter">' + strikePips + '</div></td>' +
-        '<td>' +
-          '<div style="display:flex;align-items:center;gap:10px;">' +
-            '<div class="makeup-dots">' + dots + '</div>' +
-            '<span style="font-size:11px;color:var(--muted)">' + c.makeups + '/3</span>' +
-          '</div>' +
-        '</td>' +
+        '<td><div style="display:flex;align-items:center;gap:10px;"><div class="makeup-dots">' + dots + '</div><span style="font-size:11px;color:var(--muted)">' + c.makeups + '/3</span></div></td>' +
         '<td>' + addedBy + '</td>' +
         '<td><button class="btn-del" onclick="removeFromCircus(\'' + c.id + '\')">Remove</button></td>' +
       '</tr>';
     }).join('');
   }
 
-  // History table — show all players who have ever completed circus
   var historyMap = {};
   circusHistory.forEach(function(h) {
     if (!historyMap[h.player_id]) historyMap[h.player_id] = 0;
@@ -794,12 +779,11 @@ function renderCircus() {
     hb.innerHTML = histPlayers
       .sort(function(a,b) { return (historyMap[b.id]||0) - (historyMap[a.id]||0); })
       .map(function(p) {
-        var rounds = historyMap[p.id] || 0;
         return '<tr>' +
           '<td>' + esc(p.name) + '</td>' +
           '<td>' + lvlBadge(p.level) + '</td>' +
           '<td class="hide-mobile">' + grpBadge(p.group_name) + '</td>' +
-          '<td><span style="font-family:\'Bebas Neue\',sans-serif;font-size:20px;color:var(--green)">' + rounds + '</span></td>' +
+          '<td><span style="font-family:\'Bebas Neue\',sans-serif;font-size:20px;color:var(--green)">' + (historyMap[p.id]||0) + '</span></td>' +
         '</tr>';
       }).join('');
   }
@@ -808,7 +792,6 @@ function renderCircus() {
 // ── Circus Manual Add Modal ──
 function openCircusAdd() {
   var sel = document.getElementById('cm-player');
-  // only show players NOT already on circus
   var available = players.filter(function(p) {
     return !circusRecords.find(function(c) { return c.player_id === p.id; });
   });
@@ -861,8 +844,8 @@ function renderRoster() {
   var level  = document.getElementById('r-level').value;
   var group  = document.getElementById('r-group').value;
   var pos    = document.getElementById('r-pos').value;
-
   var activeFilter = document.getElementById('r-active').value;
+
   var list = players.filter(function(p) {
     if (search && p.name.toLowerCase().indexOf(search) === -1) return false;
     if (level && p.level !== level) return false;
@@ -922,8 +905,8 @@ function renderRoster() {
         '<button class="btn-del" onclick="delPlayer(\x27' + p.id + '\x27)">Remove</button>' +
       '</td></tr>';
   }).join('');
-
 }
+
 function sortBy(col) {
   rSort.dir = rSort.col === col ? rSort.dir * -1 : 1;
   rSort.col = col;
@@ -1016,7 +999,6 @@ async function delPlayer(id) {
 }
 
 // ── CSV Import ──
-// Properly parse a CSV line respecting quoted fields (handles "Last, First" names)
 function parseCSVLine(line) {
   var result = [];
   var cur = '';
@@ -1024,7 +1006,7 @@ function parseCSVLine(line) {
   for (var i = 0; i < line.length; i++) {
     var ch = line[i];
     if (ch === '"') {
-      if (inQuotes && line[i+1] === '"') { cur += '"'; i++; } // escaped quote
+      if (inQuotes && line[i+1] === '"') { cur += '"'; i++; }
       else { inQuotes = !inQuotes; }
     } else if (ch === ',' && !inQuotes) {
       result.push(cur.trim());
@@ -1037,96 +1019,12 @@ function parseCSVLine(line) {
   return result;
 }
 
-// Detect if a value looks like a first name (non-numeric, non-empty, no digits)
 function looksLikeName(v) {
   if (!v) return false;
   return isNaN(v) && /^[A-Za-z]/.test(v.trim());
 }
 
-// ── Fix Split Names (cleanup for Last, First CSV imports) ──
-// ── New Season ──
-// ── Strike Reset ──
-function openStrikeReset() {
-  document.getElementById('rs-date').valueAsDate = new Date();
-  document.getElementById('rs-reason').value = '';
-  document.getElementById('reset-modal').classList.add('open');
-}
-
-function closeResetModal() {
-  document.getElementById('reset-modal').classList.remove('open');
-}
-
-document.getElementById('reset-modal').addEventListener('click', function(e) {
-  if (e.target === e.currentTarget) closeResetModal();
-});
-
-async function runStrikeReset() {
-  var date = document.getElementById('rs-date').value;
-  var reason = document.getElementById('rs-reason').value.trim();
-  if (!date) { toast('Pick a date'); return; }
-  if (!confirm('Reset all strikes as of ' + date + '? History is preserved.')) return;
-  var res = await db.from('strike_resets').insert({ reset_date: date, reason: reason || null }).select().single();
-  if (res.error) { toast('Error: ' + res.error.message); return; }
-  strikeResets.push(res.data);
-  closeResetModal();
-  toast('✓ Strikes reset as of ' + date);
-  renderRoster(); renderReports(); renderCircus();
-}
-
-function openNewSeason() {
-  document.getElementById('ns-players').checked = false;
-  document.getElementById('ns-sessions').checked = false;
-  document.getElementById('ns-circus').checked = false;
-  document.getElementById('ns-confirm').value = '';
-  document.getElementById('season-modal').classList.add('open');
-}
-
-function closeSeasonModal() {
-  document.getElementById('season-modal').classList.remove('open');
-}
-
-document.getElementById('season-modal').addEventListener('click', function(e) {
-  if (e.target === e.currentTarget) closeSeasonModal();
-});
-
-async function runNewSeason() {
-  var confirm_val = document.getElementById('ns-confirm').value.trim();
-  if (confirm_val !== 'RESET') { toast('Type RESET to confirm'); return; }
-
-  var doPlayers  = document.getElementById('ns-players').checked;
-  var doSessions = document.getElementById('ns-sessions').checked;
-  var doCircus   = document.getElementById('ns-circus').checked;
-
-  if (!doPlayers && !doSessions && !doCircus) { toast('Select at least one option'); return; }
-
-  closeSeasonModal();
-  toast('Clearing…');
-
-  try {
-    if (doCircus) {
-      await db.from('circus_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await db.from('circus').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      circusRecords = []; circusHistory = [];
-    }
-    if (doSessions) {
-      await db.from('attendance').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await db.from('practices').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      attendance = []; sessions = [];
-    }
-    if (doPlayers) {
-      await db.from('players').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      players = [];
-    }
-    refreshPosFilter();
-    renderRoster(); renderSessions(); renderReports(); renderCircus();
-    toast('✓ Season reset complete');
-  } catch(e) {
-    toast('Error: ' + e.message);
-  }
-}
-
 async function fixSplitNames() {
-  // Find players where grade looks like a first name (not a number)
   var toFix = players.filter(function(p) {
     return p.grade && isNaN(p.grade) && /^[A-Za-z]/.test(p.grade.trim());
   });
@@ -1182,8 +1080,6 @@ async function importCSV(event) {
     var name = col('name') >= 0 ? cols[col('name')] : cols[0];
     if (!name) return;
 
-    // If grade looks like a first name, the name was "Last, First" split by comma.
-    // Re-join as "Last, First" (preserving original order) and clear grade.
     var grade = col('grade') >= 0 ? cols[col('grade')] || null : null;
     if (grade && looksLikeName(grade) && col('grade') === 1 && col('name') === 0) {
       name = name.trim() + ', ' + grade.trim();
@@ -1243,6 +1139,7 @@ function renderSessions() {
     var nAbsent   = att.filter(function(a){ return a.status === 'absent'; }).length;
     var nTardy    = att.filter(function(a){ return a.status === 'tardy'; }).length;
     var nInjured  = att.filter(function(a){ return a.status === 'injured'; }).length;
+    var nExcused  = att.filter(function(a){ return a.status === 'excused'; }).length;
     var tc = s.label === 'AM' ? 'b-am' : 'b-pm';
 
     var rows = players.filter(function(p){
@@ -1273,11 +1170,11 @@ function renderSessions() {
         '<span class="s-date">' + fmtDate(s.date) + '</span>' +
         '<span style="flex:1;font-size:12px;color:var(--muted)">' + (s.notes || '') + '</span>' +
         '<span id="hdr-' + s.id + '">' +
-          '<span class="b bg">' + nPresent + ' present</span>' +
-          '<span class="b br">' + nAbsent + ' absent</span>' +
-          (nTardy ? '<span class="b ba">' + nTardy + ' tardy</span>' : '') +
-          (nInjured ? '<span class="b bi">' + nInjured + ' inj</span>' : '') +
-          (att.filter(function(a){ return a.status==='excused'; }).length ? '<span class="b b-excused">' + att.filter(function(a){ return a.status==='excused'; }).length + ' exc</span>' : '') +
+          '<span class="b bg">' + nPresent + ' present</span> ' +
+          '<span class="b br">' + nAbsent + ' absent</span> ' +
+          (nTardy  ? '<span class="b ba">' + nTardy + ' tardy</span> ' : '') +
+          (nInjured? '<span class="b bi">' + nInjured + ' inj</span> ' : '') +
+          (nExcused? '<span class="b b-excused">' + nExcused + ' exc</span>' : '') +
         '</span>' +
         '<button class="btn-del" onclick="event.stopPropagation();delSession(\'' + s.id + '\')">Delete</button>' +
         '<span id="chev-' + s.id + '" style="font-size:11px;color:var(--muted)">▾</span>' +
@@ -1294,8 +1191,8 @@ function renderSessions() {
   Object.keys(openIds).forEach(function(id) {
     var body = document.getElementById('sb-' + id);
     var chev = document.getElementById('chev-' + id);
-    if (body) { body.classList.add('open'); }
-    if (chev) { chev.textContent = '▴'; }
+    if (body) body.classList.add('open');
+    if (chev) chev.textContent = '▴';
   });
 }
 
@@ -1374,7 +1271,7 @@ function renderReports() {
   var fp = players.filter(function(p){ return p.active !== false && p.active !== 'false' && (!lvl || p.level===lvl) && (!grp || p.group_name===grp); });
   var fs = sessions.filter(function(s){ return !st || s.label===st; });
 
-  var totP = 0, totA = 0, totT = 0, totI = 0, totE = 0;
+  var totP=0,totA=0,totT=0,totI=0,totE=0;
   attendance.forEach(function(a) {
     if (!fp.find(function(p){ return p.id===a.player_id; })) return;
     if (!fs.find(function(s){ return s.id===a.practice_id; })) return;
@@ -1483,9 +1380,79 @@ function exportCSV() {
   toast('CSV exported ✓');
 }
 
-// ── Helpers ──
-function dash() { return '<span style="color:var(--muted)">—</span>'; }
-function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// ── Strike Reset ──
+function openStrikeReset() {
+  document.getElementById('rs-date').valueAsDate = new Date();
+  document.getElementById('rs-reason').value = '';
+  document.getElementById('reset-modal').classList.add('open');
+}
+function closeResetModal() { document.getElementById('reset-modal').classList.remove('open'); }
+document.getElementById('reset-modal').addEventListener('click', function(e) {
+  if (e.target === e.currentTarget) closeResetModal();
+});
+async function runStrikeReset() {
+  var date = document.getElementById('rs-date').value;
+  var reason = document.getElementById('rs-reason').value.trim();
+  if (!date) { toast('Pick a date'); return; }
+  if (!confirm('Reset all strikes as of ' + date + '? History is preserved.')) return;
+  var res = await db.from('strike_resets').insert({ reset_date: date, reason: reason || null }).select().single();
+  if (res.error) { toast('Error: ' + res.error.message); return; }
+  strikeResets.push(res.data);
+  closeResetModal();
+  toast('✓ Strikes reset as of ' + date);
+  renderRoster(); renderReports(); renderCircus();
+}
+
+// ── New Season ──
+function openNewSeason() {
+  document.getElementById('ns-players').checked = false;
+  document.getElementById('ns-sessions').checked = false;
+  document.getElementById('ns-circus').checked = false;
+  document.getElementById('ns-confirm').value = '';
+  document.getElementById('season-modal').classList.add('open');
+}
+function closeSeasonModal() { document.getElementById('season-modal').classList.remove('open'); }
+document.getElementById('season-modal').addEventListener('click', function(e) {
+  if (e.target === e.currentTarget) closeSeasonModal();
+});
+async function runNewSeason() {
+  var confirm_val = document.getElementById('ns-confirm').value.trim();
+  if (confirm_val !== 'RESET') { toast('Type RESET to confirm'); return; }
+
+  var doPlayers  = document.getElementById('ns-players').checked;
+  var doSessions = document.getElementById('ns-sessions').checked;
+  var doCircus   = document.getElementById('ns-circus').checked;
+  if (!doPlayers && !doSessions && !doCircus) { toast('Select at least one option'); return; }
+
+  closeSeasonModal();
+  toast('Clearing…');
+  try {
+    if (doCircus) {
+      await db.from('circus_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await db.from('circus').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      circusRecords = []; circusHistory = [];
+    }
+    if (doSessions) {
+      await db.from('attendance').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await db.from('practices').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      attendance = []; sessions = [];
+    }
+    if (doPlayers) {
+      await db.from('players').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      players = [];
+    }
+    refreshPosFilter();
+    renderRoster(); renderSessions(); renderReports(); renderCircus();
+    toast('✓ Season reset complete');
+  } catch(e) {
+    toast('Error: ' + e.message);
+  }
+}
+
+init();
+</script>
+</body>
+</html>function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function lvlBadge(v) {
   if (!v) return dash();
