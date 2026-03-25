@@ -216,14 +216,15 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
   <p class="section-title">Practice</p>
   <div class="row">
     <input type="date" id="s-date">
-    <select id="s-type"><option value="AM">AM (Morning)</option><option value="PM">PM (Afternoon)</option></select>
+    <select id="s-time"><option value="AM">Before School</option><option value="PM">After School</option></select>
+    <select id="s-group"><option value="AM">AM Group</option><option value="PM">PM Group</option></select>
     <input type="text" id="s-notes" class="grow" placeholder="Notes (optional)">
     <button class="btn-g" onclick="addSession()">+ Add Session</button>
   </div>
   <div class="pills">
-    <div class="pill on" id="pill-all" onclick="setFilter('all')">All</div>
-    <div class="pill" id="pill-AM" onclick="setFilter('AM')">AM Only</div>
-    <div class="pill" id="pill-PM" onclick="setFilter('PM')">PM Only</div>
+    <div class="pill on" id="pill-all" onclick="setFilter('all')">All Times</div>
+    <div class="pill" id="pill-AM" onclick="setFilter('AM')">Before School</div>
+    <div class="pill" id="pill-PM" onclick="setFilter('PM')">After School</div>
   </div>
   <div id="sess-list"><div class="empty">No sessions yet.</div></div>
 </div>
@@ -234,7 +235,7 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
   <div class="row" style="margin-bottom:16px">
     <select id="rpt-level" onchange="renderReports()"><option value="">All Levels</option><option>Freshman</option><option>JV</option><option>Varsity</option></select>
     <select id="rpt-group" onchange="renderReports()"><option value="">AM + PM</option><option value="AM">AM Group</option><option value="PM">PM Group</option></select>
-    <select id="rpt-sess" onchange="renderReports()"><option value="">All Sessions</option><option value="AM">AM Sessions</option><option value="PM">PM Sessions</option></select>
+    <select id="rpt-sess" onchange="renderReports()"><option value="">All Session Times</option><option value="AM">Before School</option><option value="PM">After School</option></select>
   </div>
   <div class="stat-grid" id="rpt-stats"></div>
   <div style="overflow-x:auto">
@@ -382,6 +383,37 @@ function fmtDate(d){
   var p=d.split('-');
   var dt=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
   return dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+}
+function parseSessionLabel(label){
+  var raw=String(label||'').toUpperCase();
+  if(!raw)return{time:'AM',group:'AM'};
+  if(raw.indexOf('|')>=0){
+    var parts=raw.split('|');
+    return{time:parts[0]||'AM',group:parts[1]||parts[0]||'AM'};
+  }
+  return{time:raw,group:raw};
+}
+function makeSessionLabel(time,group){
+  time=(time||'AM').toUpperCase();
+  group=(group||time).toUpperCase();
+  return time===group?time:time+'|'+group;
+}
+function getSessionTime(session){return parseSessionLabel(session&&session.label).time;}
+function getSessionGroup(session){return parseSessionLabel(session&&session.label).group;}
+function sessionTimeText(time){return time==='PM'?'After School':'Before School';}
+function sessionTimeBadge(time){return'<span class="b '+(time==='PM'?'b-pm':'b-am')+'">'+sessionTimeText(time)+'</span>';}
+function sessionGroupBadge(group){return'<span class="b '+(group==='PM'?'b-pm':'b-am')+'">'+esc(group||'AM')+' Group</span>';}
+function playerMatchesSession(player,session){
+  if(!player||!session)return false;
+  if(player.active===false||player.active==='false')return false;
+  var group=getSessionGroup(session);
+  return !player.group_name||player.group_name===group;
+}
+function getEligiblePlayersForSession(session){
+  return players.filter(function(p){return playerMatchesSession(p,session);});
+}
+function getEligibleSessionsForPlayer(player,sessionList){
+  return (sessionList||sessions).filter(function(s){return playerMatchesSession(player,s);});
 }
 function lvlBadge(l){
   if(!l)return dash();
@@ -679,11 +711,7 @@ function setFilter(val){
 /* ── MARK ALL ── */
 async function markAll(sessionId,status){
   var sess=sessions.find(function(s){return s.id===sessionId;});if(!sess)return;
-  var eligible=players.filter(function(p){
-    if(p.active===false||p.active==='false')return false;
-    if(p.group_name&&p.group_name!==sess.label)return false;
-    return true;
-  });
+  var eligible=getEligiblePlayersForSession(sess);
   if(!eligible.length){toast('No players to mark');return;}
   eligible.forEach(function(p){
     var ex=attendance.find(function(a){return a.practice_id===sessionId&&a.player_id===p.id;});
@@ -711,11 +739,11 @@ async function markAll(sessionId,status){
 
 /* ── SESSION SORT ── */
 function setSessSort(sessionId,col){sessSortCol[sessionId]=col;renderSessions();}
-function getSortedPlayers(sessionId,label){
+function getSortedPlayers(sessionId,group){
   var col=sessSortCol[sessionId]||'name';
   var list=players.filter(function(p){
     if(p.active===false||p.active==='false')return false;
-    if(p.group_name&&p.group_name!==label)return false;
+    if(group&&p.group_name&&p.group_name!==group)return false;
     return true;
   });
   list.sort(function(a,b){
@@ -738,7 +766,7 @@ function getSortedPlayers(sessionId,label){
 function renderSessions(){
   var openIds={};
   sessions.forEach(function(s){var b=document.getElementById('sb-'+s.id);if(b&&b.classList.contains('open'))openIds[s.id]=true;});
-  var list=sessFilter==='all'?sessions:sessions.filter(function(s){return s.label===sessFilter;});
+  var list=sessFilter==='all'?sessions:sessions.filter(function(s){return getSessionTime(s)===sessFilter;});
   var el=document.getElementById('sess-list');
   if(!list.length){el.innerHTML='<div class="empty">No sessions yet.</div>';return;}
   el.innerHTML=list.map(function(s){
@@ -748,8 +776,9 @@ function renderSessions(){
     var nT=att.filter(function(a){return a.status==='tardy';}).length;
     var nI=att.filter(function(a){return a.status==='injured';}).length;
     var nE=att.filter(function(a){return a.status==='excused';}).length;
-    var tc=s.label==='AM'?'b-am':'b-pm';
-    var sortedP=getSortedPlayers(s.id,s.label);
+    var meta=parseSessionLabel(s.label);
+    var tc=meta.time==='AM'?'b-am':'b-pm';
+    var sortedP=getSortedPlayers(s.id,meta.group);
     var curSort=sessSortCol[s.id]||'name';
     var sortOpts=['name','grade','level','position'].map(function(v){
       var lbl=v.charAt(0).toUpperCase()+v.slice(1);
@@ -775,7 +804,8 @@ function renderSessions(){
     }).join('');
     return'<div class="s-card">'+
       '<div class="s-head" onclick="toggleSess(\''+s.id+'\')">'+
-        '<span class="b '+tc+'">'+s.label+'</span>'+
+        sessionTimeBadge(meta.time)+
+        sessionGroupBadge(meta.group)+
         '<span class="s-date">'+fmtDate(s.date)+'</span>'+
         '<span style="flex:1;font-size:12px;color:var(--muted)">'+(s.notes||'')+'</span>'+
         '<span id="hdr-'+s.id+'">'+
@@ -819,10 +849,12 @@ function toggleSess(id){
 }
 async function addSession(){
   var date=document.getElementById('s-date').value;
-  var type=document.getElementById('s-type').value;
+  var time=document.getElementById('s-time').value;
+  var group=document.getElementById('s-group').value;
+  var label=makeSessionLabel(time,group);
   var notes=document.getElementById('s-notes').value.trim();
   if(!date){toast('Pick a date');return;}
-  var existing=sessions.find(function(s){return s.date===date&&s.label===type;});
+  var existing=sessions.find(function(s){return s.date===date&&s.label===label;});
   if(existing){
     document.getElementById('s-notes').value='';renderSessions();
     setTimeout(function(){
@@ -832,10 +864,10 @@ async function addSession(){
     },50);
     toast('Session already exists — opened it ↓');return;
   }
-  var res=await db.from('practices').insert({date:date,label:type,notes:notes||null}).select().single();
+  var res=await db.from('practices').insert({date:date,label:label,notes:notes||null}).select().single();
   if(res.error){toast('Error: '+res.error.message);return;}
   sessions.unshift(res.data);document.getElementById('s-notes').value='';
-  renderSessions();renderReports();toast(type+' session added ✓');
+  renderSessions();renderReports();toast(sessionTimeText(time)+' · '+group+' group added ✓');
 }
 async function delSession(id){
   if(!confirm('Delete this session and all attendance records?'))return;
@@ -863,41 +895,44 @@ function renderReports(){
   var grp=document.getElementById('rpt-group').value;
   var st=document.getElementById('rpt-sess').value;
   var fp=players.filter(function(p){return p.active!==false&&p.active!=='false'&&(!lvl||p.level===lvl)&&(!grp||p.group_name===grp);});
-  var fs=sessions.filter(function(s){return!st||s.label===st;});
+  var fs=sessions.filter(function(s){return!st||getSessionTime(s)===st;});
   var totP=0,totA=0,totT=0,totI=0,totE=0;
   attendance.forEach(function(a){
     if(!fp.find(function(p){return p.id===a.player_id;}))return;
     if(!fs.find(function(s){return s.id===a.practice_id;}))return;
     if(a.status==='present')totP++;if(a.status==='absent')totA++;if(a.status==='tardy')totT++;if(a.status==='injured')totI++;if(a.status==='excused')totE++;
   });
-  var tp=fs.length*fp.length;var rate=tp?Math.round(totP/tp*100):0;
+  var tp=fp.reduce(function(sum,p){return sum+getEligibleSessionsForPlayer(p,fs).length;},0);
+  var rate=tp?Math.round(totP/tp*100):0;
   document.getElementById('rpt-stats').innerHTML=
-    '<div class="stat-card"><div class="stat-lbl">Attendance Rate</div><div class="stat-val" style="color:var(--green)">'+rate+'%</div><div class="stat-sub">'+totP+' of '+tp+' slots</div></div>'+
-    '<div class="stat-card"><div class="stat-lbl">Sessions</div><div class="stat-val" style="color:var(--green)">'+fs.length+'</div><div class="stat-sub">AM: '+sessions.filter(function(s){return s.label==='AM';}).length+' · PM: '+sessions.filter(function(s){return s.label==='PM';}).length+'</div></div>'+
+    '<div class="stat-card"><div class="stat-lbl">Attendance Rate</div><div class="stat-val" style="color:var(--green)">'+rate+'%</div><div class="stat-sub">'+totP+' of '+tp+' eligible slots</div></div>'+
+    '<div class="stat-card"><div class="stat-lbl">Sessions</div><div class="stat-val" style="color:var(--green)">'+fs.length+'</div><div class="stat-sub">Before: '+sessions.filter(function(s){return getSessionTime(s)==='AM';}).length+' · After: '+sessions.filter(function(s){return getSessionTime(s)==='PM';}).length+'</div></div>'+
     '<div class="stat-card"><div class="stat-lbl">Players</div><div class="stat-val" style="color:var(--green)">'+fp.length+'</div><div class="stat-sub">filtered roster</div></div>'+
     '<div class="stat-card"><div class="stat-lbl">Tardy</div><div class="stat-val" style="color:var(--amber)">'+totT+'</div><div class="stat-sub">total instances</div></div>'+
     '<div class="stat-card"><div class="stat-lbl">Injured</div><div class="stat-val" style="color:var(--blue)">'+totI+'</div><div class="stat-sub">total instances</div></div>'+
     '<div class="stat-card"><div class="stat-lbl">Excused</div><div class="stat-val" style="color:#80cbc4">'+totE+'</div><div class="stat-sub">total instances</div></div>';
   if(!fp.length){document.getElementById('rpt-body').innerHTML='<tr><td colspan="12" class="empty">No players match filters.</td></tr>';return;}
   var rows=fp.map(function(p){
-    var ma=attendance.filter(function(a){return a.player_id===p.id&&fs.find(function(s){return s.id===a.practice_id;});});
+    var eligibleSessions=getEligibleSessionsForPlayer(p,fs);
+    var ma=attendance.filter(function(a){return a.player_id===p.id&&eligibleSessions.find(function(s){return s.id===a.practice_id;});});
     var pr=ma.filter(function(a){return a.status==='present';}).length;
     var ab=ma.filter(function(a){return a.status==='absent';}).length;
     var ta=ma.filter(function(a){return a.status==='tardy';}).length;
     var inj=ma.filter(function(a){return a.status==='injured';}).length;
     var ex=ma.filter(function(a){return a.status==='excused';}).length;
-    var r=fs.length?Math.round(pr/fs.length*100):0;
+    var r=eligibleSessions.length?Math.round(pr/eligibleSessions.length*100):0;
     var strikes=getStrikes(p.id);var oc=circusRecords.find(function(c){return c.player_id===p.id;});
     var sb=oc?'<span class="b b-strike">🎪 '+strikes+'</span>':isDueForCircus(p.id)?'<span class="b br">'+strikes+' ⚡</span>':strikes>0?'<span class="b ba">'+strikes+'</span>':'<span style="color:var(--muted);font-size:11px">—</span>';
     var notable=ma.filter(function(a){return a.status==='absent'||a.status==='tardy'||a.status==='injured'||a.status==='excused';})
-      .map(function(a){var sess=fs.find(function(s){return s.id===a.practice_id;});return sess?{date:sess.date,label:sess.label,status:a.status}:null;})
+      .map(function(a){var sess=eligibleSessions.find(function(s){return s.id===a.practice_id;});return sess?{date:sess.date,time:getSessionTime(sess),group:getSessionGroup(sess),status:a.status}:null;})
       .filter(Boolean).sort(function(a,b){return a.date.localeCompare(b.date);});
     var chips=notable.map(function(d){
       var pts=d.date.split('-');var dt=new Date(parseInt(pts[0]),parseInt(pts[1])-1,parseInt(pts[2]));
       var lbl=dt.toLocaleDateString('en-US',{month:'short',day:'numeric'});
       var cls=d.status==='tardy'?'chip-t':d.status==='injured'?'chip-i':d.status==='excused'?'chip-e':'chip-a';
       var pfx=d.status==='tardy'?'T ':d.status==='injured'?'I ':d.status==='excused'?'E ':'';
-      return'<span class="chip '+cls+'">'+pfx+d.label+' '+lbl+'</span>';
+      var sessLbl=(d.time==='PM'?'After':'Before')+' · '+d.group;
+      return'<span class="chip '+cls+'">'+pfx+sessLbl+' '+lbl+'</span>';
     }).join('');
     return{p:p,present:pr,absent:ab,tardy:ta,injured:inj,excused:ex,rate:r,chips:chips,sb:sb};
   }).sort(function(a,b){return b.rate-a.rate;});
@@ -913,12 +948,12 @@ function renderReports(){
 }
 
 function exportCSV(){
-  var headers=['Player','Grade','Period','Position','Level','Group','Strikes','OnCircus'].concat(sessions.map(function(s){return s.label+' '+s.date;}));
+  var headers=['Player','Grade','Period','Position','Level','Group','Strikes','OnCircus'].concat(sessions.map(function(s){return sessionTimeText(getSessionTime(s))+' / '+getSessionGroup(s)+' Group '+s.date;}));
   var rows=[headers];
   players.forEach(function(p){
     var oc=circusRecords.find(function(c){return c.player_id===p.id;})?'Yes':'No';
     var row=[p.name,p.grade||'',p.period||'',p.position||'',p.level||'',p.group_name||'',getStrikes(p.id),oc];
-    sessions.forEach(function(s){var rec=attendance.find(function(a){return a.player_id===p.id&&a.practice_id===s.id;});row.push(rec?rec.status:'unmarked');});
+    sessions.forEach(function(s){var rec=attendance.find(function(a){return a.player_id===p.id&&a.practice_id===s.id;});row.push(playerMatchesSession(p,s)?(rec?rec.status:'unmarked'):'n/a');});
     rows.push(row);
   });
   var csv=rows.map(function(r){return r.join(',');}).join('\n');
