@@ -1,507 +1,32 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Team Attendance</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>
-:root {
-  --green:#00e676; --red:#ff1744; --amber:#ffab00; --blue:#29b6f6;
-  --purple:#ce93d8; --orange:#ff7043;
-  --bg:#0d0d0d; --surface:#161616; --surface2:#1c1c1c;
-  --border:#2a2a2a; --text:#f0f0f0; --muted:#666;
-}
-*{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
-
-/* header */
-header{border-bottom:1px solid var(--border);padding:16px 28px;display:flex;align-items:center;gap:14px;background:var(--surface);}
-header h1{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:var(--green);}
-#status{font-size:12px;color:var(--muted);margin-left:auto;}
-
-/* tabs */
-.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);padding:0 28px;}
-.tab{padding:13px 18px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;letter-spacing:.8px;text-transform:uppercase;}
-.tab:hover{color:var(--text);}
-.tab.active{color:var(--green);border-bottom-color:var(--green);}
-.tab.circus-tab.active{color:var(--orange);border-bottom-color:var(--orange);}
-
-/* layout */
-.container{padding:28px;max-width:1020px;margin:0 auto;}
-.page{display:none;}
-.page.active{display:block;}
-.section-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;}
-
-/* form controls */
-.row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;align-items:center;}
-input[type="text"],input[type="date"],select{
-  background:var(--surface);border:1px solid var(--border);color:var(--text);
-  padding:9px 13px;border-radius:6px;font-family:inherit;font-size:13px;outline:none;transition:border-color .15s;}
-input:focus,select:focus{border-color:var(--green);}
-select option{background:#1a1a1a;}
-.grow{flex:1;min-width:140px;}
-
-/* buttons */
-button{padding:9px 16px;border-radius:6px;border:none;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .15s;}
-.btn-g{background:var(--green);color:#000;}
-.btn-g:hover{opacity:.85;}
-.btn-gh{background:var(--border);color:var(--text);}
-.btn-gh:hover{background:#333;}
-.btn-del{background:transparent;color:var(--red);border:1px solid #2a0a0a;font-size:11px;padding:5px 9px;}
-.btn-del:hover{background:#1a0505;}
-.btn-edit{background:transparent;color:var(--amber);border:1px solid #2a1a00;font-size:11px;padding:5px 9px;}
-.btn-edit:hover{background:#1a1000;}
-.btn-orange{background:var(--orange);color:#000;}
-.btn-orange:hover{opacity:.85;}
-
-/* pills */
-.pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
-.pill{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:transparent;letter-spacing:.4px;transition:all .12s;}
-.pill:hover{color:var(--text);}
-.pill.on{background:#0d2a0d;border-color:var(--green);color:var(--green);}
-.pill.am-on{background:#0d1a2a;border-color:var(--blue);color:var(--blue);}
-.pill.pm-on{background:#2a1a0d;border-color:var(--amber);color:var(--amber);}
-
-/* table */
-.tbl{width:100%;border-collapse:collapse;}
-.tbl th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:9px 12px;border-bottom:1px solid var(--border);white-space:nowrap;user-select:none;}
-.tbl th.sort-col{cursor:pointer;}
-.tbl th.sort-col:hover{color:var(--text);}
-.tbl th.sorted{color:var(--green);}
-.tbl td{padding:10px 12px;border-bottom:1px solid #1a1a1a;font-size:13px;vertical-align:middle;}
-.tbl tr:last-child td{border-bottom:none;}
-.tbl tr:hover td{background:#161616;}
-
-/* badges */
-.b{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;}
-.bg{background:#0d2a0d;color:var(--green);}
-.br{background:#2a0d0d;color:var(--red);}
-.ba{background:#2a1a00;color:var(--amber);}
-.bi{background:#0d1a2a;color:var(--blue);}
-.b-var{background:#1a0a2a;color:#ce93d8;}
-.b-jv{background:#0a1a2a;color:#81d4fa;}
-.b-fr{background:#0a2a1a;color:#80cbc4;}
-.b-am{background:#0d1a2a;color:var(--blue);}
-.b-pm{background:#2a1a0d;color:var(--amber);}
-.b-strike{background:#2a1500;color:var(--orange);}
-.b-clear{background:#0d2a0d;color:var(--green);}
-.b-manual{background:#1a0a2a;color:var(--purple);}
-.b-inactive{background:#1e1e1e;color:var(--muted);}
-.b-active{background:#0d2a0d;color:var(--green);}
-
-/* attendance toggle */
-.tog{display:flex;border-radius:5px;overflow:hidden;border:1px solid var(--border);width:fit-content;}
-.tog button{padding:5px 12px;font-size:11px;border-radius:0;border:none;background:transparent;color:var(--muted);transition:all .1s;font-family:inherit;font-weight:600;cursor:pointer;}
-
-/* ── Mobile ── */
-@media(max-width:600px){
-  header{padding:12px 16px;}
-  header h1{font-size:20px;}
-  .tabs{padding:0 8px;overflow-x:auto;}
-  .tab{padding:11px 12px;font-size:11px;white-space:nowrap;}
-  .container{padding:16px;}
-  .row{gap:6px;}
-  .row input,.row select,.row .grow{width:100%;min-width:0;}
-  .btn-g,.btn-gh,.btn-orange{width:100%;text-align:center;}
-  .tbl{font-size:12px;}
-  .tbl th,.tbl td{padding:8px 8px;}
-  .hide-mobile{display:none;}
-  .s-head{gap:6px;padding:11px 12px;}
-  .s-date{font-size:14px;}
-  .tog button{padding:7px 9px;font-size:12px;}
-  .stat-grid{grid-template-columns:1fr 1fr;}
-  .modal{padding:20px 16px;}
-  .mf input,.mf select{font-size:16px;}
-  input[type="text"],input[type="date"],select{font-size:16px;}
-  .chips{flex-direction:column;gap:2px;}
-  .rpt-dates-col{min-width:160px;}
-  .bar-bg{min-width:40px;}
-  .circus-columns{grid-template-columns:1fr;}
-}
-.tog button.on-p{background:#0d2a0d;color:var(--green);}
-.tog button.on-a{background:#2a0d0d;color:var(--red);}
-.tog button.on-t{background:#2a1a00;color:var(--amber);}
-.tog button.on-i{background:#0d1a2a;color:var(--blue);}
-.tog button.on-e{background:#0d2a1a;color:var(--green);}
-.b-excused{background:#0d2a1a;color:#80cbc4;}
-
-/* session cards */
-.s-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:14px;overflow:hidden;}
-.s-head{padding:13px 18px;display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;flex-wrap:wrap;}
-.s-head:hover{background:var(--surface2);}
-.s-date{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:1px;}
-.s-body{display:none;border-top:1px solid var(--border);overflow-x:auto;}
-.s-body.open{display:block;}
-
-/* stat cards */
-.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:22px;}
-.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;}
-.stat-lbl{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px;}
-.stat-val{font-family:'Bebas Neue',sans-serif;font-size:36px;line-height:1;}
-.stat-sub{font-size:11px;color:var(--muted);margin-top:3px;}
-
-/* bar */
-.bar-wrap{display:flex;align-items:center;gap:8px;}
-.bar-bg{flex:1;height:5px;background:#1e1e1e;border-radius:3px;overflow:hidden;min-width:50px;}
-.bar-fill{height:100%;border-radius:3px;background:var(--green);transition:width .4s;}
-.bar-pct{font-size:12px;color:var(--muted);width:32px;text-align:right;}
-
-/* makeup dots */
-.makeup-dots{display:flex;gap:5px;align-items:center;}
-.dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border);background:transparent;cursor:pointer;transition:all .15s;flex-shrink:0;}
-.dot.filled{background:var(--orange);border-color:var(--orange);}
-.dot:hover{border-color:var(--orange);}
-
-/* strike meter */
-.strike-meter{display:flex;gap:4px;align-items:center;}
-.strike-pip{width:10px;height:10px;border-radius:50%;background:#1e1e1e;border:1px solid var(--border);}
-.strike-pip.active{background:var(--orange);}
-.strike-pip.danger{background:var(--red);}
-
-/* circus layout */
-.circus-columns{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
-.circus-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
-.circus-panel-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;}
-.circus-panel-title{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:var(--orange);}
-.circus-panel-body{overflow-x:auto;}
-
-/* circus banner */
-.circus-banner{background:linear-gradient(135deg,#1a0800 0%,#2a1200 100%);border:1px solid #3a1800;border-radius:10px;padding:18px 22px;margin-bottom:20px;display:flex;align-items:center;gap:16px;}
-.circus-banner-icon{font-size:28px;}
-.circus-banner-text h3{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--orange);}
-.circus-banner-text p{font-size:12px;color:var(--muted);margin-top:3px;}
-
-/* date chips */
-.chips{display:flex;flex-wrap:wrap;gap:3px;}
-.chip{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;}
-.chip-a{background:#2a0d0d;color:#ff6b6b;}
-.chip-t{background:#2a1a00;color:var(--amber);}
-.chip-i{background:#0d1a2a;color:var(--blue);}
-.chip-e{background:#0d2a1a;color:#80cbc4;}
-
-/* modal */
-.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;align-items:center;justify-content:center;}
-.overlay.open{display:flex;}
-.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;width:420px;max-width:95vw;}
-.modal h2{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;margin-bottom:20px;color:var(--green);}
-.mf{margin-bottom:14px;}
-.mf label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:5px;}
-.mf input,.mf select{width:100%;}
-.m-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;}
-
-/* misc */
-.empty{text-align:center;padding:40px;color:var(--muted);font-size:13px;}
-.toast{position:fixed;bottom:22px;right:22px;background:var(--surface2);border:1px solid var(--border);padding:11px 16px;border-radius:8px;font-size:13px;opacity:0;transform:translateY(6px);transition:all .2s;pointer-events:none;z-index:999;}
-.toast.show{opacity:1;transform:none;}
-code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
-.hint{font-size:11px;color:var(--muted);margin-bottom:14px;margin-top:-10px;}
-
-/* circus add modal */
-.modal.circus-modal h2{color:var(--orange);}
-</style>
-</head>
-<body>
-
-<header>
-  <div style="width:8px;height:26px;background:var(--green);border-radius:2px"></div>
-  <h1>Team Attendance</h1>
-  <span id="status">Connecting…</span>
-</header>
-
-<div class="tabs">
-  <div class="tab active" id="tab-sessions" onclick="showPage('sessions')">Practice</div>
-  <div class="tab circus-tab" id="tab-circus" onclick="showPage('circus')">🎪 Circus</div>
-  <div class="tab" id="tab-reports" onclick="showPage('reports')">Reports</div>
-  <div class="tab" id="tab-roster" onclick="showPage('roster')">Roster</div>
-</div>
-
-<!-- ══ ROSTER ══ -->
-<div id="page-roster" class="page container">
-  <p class="section-title">Roster</p>
-  <div class="row">
-    <input type="text" id="r-search" class="grow" placeholder="Search name…" oninput="renderRoster()">
-    <select id="r-level" onchange="renderRoster()">
-      <option value="">All Levels</option>
-      <option>Freshman</option><option>JV</option><option>Varsity</option>
-    </select>
-    <select id="r-group" onchange="renderRoster()">
-      <option value="">AM + PM</option>
-      <option value="AM">AM Group</option>
-      <option value="PM">PM Group</option>
-    </select>
-    <select id="r-pos" onchange="renderRoster()">
-      <option value="">All Positions</option>
-    </select>
-    <select id="r-active" onchange="renderRoster()">
-      <option value="active">Active Only</option>
-      <option value="inactive">Inactive Only</option>
-      <option value="">All Players</option>
-    </select>
-    <button class="btn-g" onclick="openAdd()">+ Add Player</button>
-    <button class="btn-gh" onclick="document.getElementById('csv-in').click()">⬆ CSV</button>
-    <button class="btn-gh" onclick="fixSplitNames()" title="Merge players where first name ended up in Grade field">🔧 Fix Split Names</button>
-    <button class="btn-gh" style="margin-left:auto" onclick="openStrikeReset()">↺ Reset Strikes</button>
-    <button class="btn-del" onclick="openNewSeason()">🗑 New Season</button>
-    <input type="file" id="csv-in" accept=".csv" style="display:none" onchange="importCSV(event)">
-  </div>
-  <p class="hint">CSV columns: <code>name</code>, <code>grade</code>, <code>period</code>, <code>position</code>, <code>level</code> (Freshman/JV/Varsity), <code>group</code> (AM/PM)</p>
-  <table class="tbl" id="roster-tbl">
-    <thead><tr>
-      <th class="sort-col" onclick="sortBy('name')">Name <span id="sa-name">↕</span></th>
-      <th class="sort-col hide-mobile" onclick="sortBy('grade')">Grade <span id="sa-grade">↕</span></th>
-      <th class="sort-col hide-mobile" onclick="sortBy('period')">Period <span id="sa-period">↕</span></th>
-      <th class="sort-col" onclick="sortBy('position')">Position <span id="sa-position">↕</span></th>
-      <th class="sort-col" onclick="sortBy('level')">Level <span id="sa-level">↕</span></th>
-      <th class="sort-col" onclick="sortBy('group_name')">Group <span id="sa-group_name">↕</span></th>
-      <th>Strikes</th>
-      <th>Status</th>
-      <th></th>
-    </tr></thead>
-    <tbody id="roster-body"><tr><td colspan="9" class="empty">Loading…</td></tr></tbody>
-  </table>
-</div>
-
-<!-- ══ SESSIONS ══ -->
-<div id="page-sessions" class="page active container">
-  <p class="section-title">Practice</p>
-  <div class="row">
-    <input type="date" id="s-date">
-    <select id="s-type">
-      <option value="AM">AM (Morning)</option>
-      <option value="PM">PM (Afternoon)</option>
-    </select>
-    <input type="text" id="s-notes" class="grow" placeholder="Notes (optional)">
-    <button class="btn-g" onclick="addSession()">+ Add Session</button>
-  </div>
-  <div class="pills">
-    <div class="pill on" id="pill-all" onclick="setFilter('all')">All</div>
-    <div class="pill" id="pill-AM" onclick="setFilter('AM')">AM Only</div>
-    <div class="pill" id="pill-PM" onclick="setFilter('PM')">PM Only</div>
-  </div>
-  <div id="sess-list"><div class="empty">No sessions yet.</div></div>
-</div>
-
-<!-- ══ REPORTS ══ -->
-<div id="page-reports" class="page container">
-  <p class="section-title">Season Summary</p>
-  <div class="row" style="margin-bottom:16px">
-    <select id="rpt-level" onchange="renderReports()">
-      <option value="">All Levels</option>
-      <option>Freshman</option><option>JV</option><option>Varsity</option>
-    </select>
-    <select id="rpt-group" onchange="renderReports()">
-      <option value="">AM + PM</option>
-      <option value="AM">AM Group</option>
-      <option value="PM">PM Group</option>
-    </select>
-    <select id="rpt-sess" onchange="renderReports()">
-      <option value="">All Sessions</option>
-      <option value="AM">AM Sessions</option>
-      <option value="PM">PM Sessions</option>
-    </select>
-  </div>
-  <div class="stat-grid" id="rpt-stats"></div>
-  <div style="overflow-x:auto">
-    <table class="tbl">
-      <thead><tr>
-        <th>Player</th><th>Level</th><th>Group</th><th>Position</th>
-        <th>Present</th><th>Absent</th><th>Tardy</th><th>Injured</th><th>Excused</th>
-        <th>Strikes</th><th>Rate</th><th class="rpt-dates-col">Absent / Notable Dates</th>
-      </tr></thead>
-      <tbody id="rpt-body"><tr><td colspan="11" class="empty">No data yet.</td></tr></tbody>
-    </table>
-  </div>
-  <div style="margin-top:16px">
-    <button class="btn-gh" onclick="exportCSV()">⬇ Export CSV</button>
-  </div>
-</div>
-
-<!-- ══ CIRCUS ══ -->
-<div id="page-circus" class="page container">
-  <div class="circus-banner">
-    <div class="circus-banner-icon">🎪</div>
-    <div class="circus-banner-text">
-      <h3>Circus Makeups</h3>
-      <p>3 strikes (absences + tardies) = circus required · 3 makeups = cleared &amp; reset</p>
-    </div>
-  </div>
-
-  <div class="row">
-    <button class="btn-orange" onclick="openCircusAdd()">+ Add Manually</button>
-    <button class="btn-gh" onclick="syncCircus()">↻ Sync from Attendance</button>
-    <select id="circus-filter" onchange="renderCircus()">
-      <option value="">All Levels</option>
-      <option>Freshman</option><option>JV</option><option>Varsity</option>
-    </select>
-  </div>
-
-  <div class="stat-grid" id="circus-stats"></div>
-
-  <p class="section-title">On Circus Now</p>
-  <div style="overflow-x:auto;margin-bottom:28px;">
-    <table class="tbl" id="circus-active-tbl">
-      <thead><tr>
-        <th>Player</th>
-        <th>Level</th>
-        <th class="hide-mobile">Group</th>
-        <th>Strikes</th>
-        <th>Makeups Done</th>
-        <th>Added By</th>
-        <th></th>
-      </tr></thead>
-      <tbody id="circus-active-body"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
-    </table>
-  </div>
-
-  <p class="section-title">Completion History</p>
-  <div style="overflow-x:auto;">
-    <table class="tbl">
-      <thead><tr>
-        <th>Player</th>
-        <th>Level</th>
-        <th class="hide-mobile">Group</th>
-        <th>Completed Rounds</th>
-      </tr></thead>
-      <tbody id="circus-history-body"><tr><td colspan="4" class="empty">No history yet.</td></tr></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- ══ PLAYER MODAL ══ -->
-<div class="overlay" id="modal">
-  <div class="modal">
-    <h2 id="modal-title">Add Player</h2>
-    <input type="hidden" id="edit-id">
-    <div class="mf"><label>Name *</label><input type="text" id="f-name" placeholder="Full name"></div>
-    <div class="mf"><label>Grade</label><input type="text" id="f-grade" placeholder="e.g. 10"></div>
-    <div class="mf"><label>Period</label><input type="text" id="f-period" placeholder="e.g. 8th"></div>
-    <div class="mf"><label>Position</label><input type="text" id="f-pos" placeholder="e.g. QB, PG…"></div>
-    <div class="mf"><label>Level</label>
-      <select id="f-level"><option value="">— Select —</option><option>Freshman</option><option>JV</option><option>Varsity</option></select>
-    </div>
-    <div class="mf"><label>Group</label>
-      <select id="f-group"><option value="">— Select —</option><option value="AM">AM</option><option value="PM">PM</option></select>
-    </div>
-    <div class="mf"><label>Status</label>
-      <select id="f-active"><option value="true">Active</option><option value="false">Inactive</option></select>
-    </div>
-    <div class="m-actions">
-      <button class="btn-gh" onclick="closeModal()">Cancel</button>
-      <button class="btn-g" onclick="savePlayer()">Save</button>
-    </div>
-  </div>
-</div>
-
-<!-- ══ CIRCUS ADD MODAL ══ -->
-<div class="overlay" id="circus-modal">
-  <div class="modal circus-modal">
-    <h2>Add to Circus</h2>
-    <div class="mf"><label>Player *</label>
-      <select id="cm-player"><option value="">— Select Player —</option></select>
-    </div>
-    <div class="mf"><label>Reason (optional)</label>
-      <input type="text" id="cm-reason" placeholder="e.g. Major offense, Coach discretion…">
-    </div>
-    <div class="m-actions">
-      <button class="btn-gh" onclick="closeCircusModal()">Cancel</button>
-      <button class="btn-orange" onclick="saveCircusAdd()">Add to Circus</button>
-    </div>
-  </div>
-</div>
-
-<!-- ══ RESET STRIKES MODAL ══ -->
-<div class="overlay" id="reset-modal">
-  <div class="modal">
-    <h2 style="color:var(--amber)">↺ Reset Strikes</h2>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.6">All strike counts reset to 0 as of the selected date. History is preserved — you can still see past absences on each player's record.</p>
-    <div class="mf"><label>Reset Date</label>
-      <input type="date" id="rs-date" style="width:100%">
-    </div>
-    <div class="mf"><label>Reason (optional)</label>
-      <input type="text" id="rs-reason" placeholder="e.g. Christmas Break, Spring Break…">
-    </div>
-    <div class="m-actions">
-      <button class="btn-gh" onclick="closeResetModal()">Cancel</button>
-      <button class="btn-g" style="background:var(--amber)" onclick="runStrikeReset()">Reset All Strikes</button>
-    </div>
-  </div>
-</div>
-
-<!-- ══ NEW SEASON MODAL ══ -->
-<div class="overlay" id="season-modal">
-  <div class="modal">
-    <h2 style="color:var(--red)">⚠ New Season Reset</h2>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.6">Choose what to clear. This cannot be undone.</p>
-    <div class="mf">
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--text);text-transform:none;letter-spacing:0">
-        <input type="checkbox" id="ns-players" style="width:16px;height:16px;accent-color:var(--red)">
-        Remove all players from roster
-      </label>
-    </div>
-    <div class="mf">
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--text);text-transform:none;letter-spacing:0">
-        <input type="checkbox" id="ns-sessions" style="width:16px;height:16px;accent-color:var(--red)">
-        Delete all sessions &amp; attendance records
-      </label>
-    </div>
-    <div class="mf">
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--text);text-transform:none;letter-spacing:0">
-        <input type="checkbox" id="ns-circus" style="width:16px;height:16px;accent-color:var(--red)">
-        Clear all circus records &amp; history
-      </label>
-    </div>
-    <div class="mf" style="margin-top:18px">
-      <label>Type <strong>RESET</strong> to confirm</label>
-      <input type="text" id="ns-confirm" placeholder="RESET" style="margin-top:6px">
-    </div>
-    <div class="m-actions">
-      <button class="btn-gh" onclick="closeSeasonModal()">Cancel</button>
-      <button class="btn-del" style="padding:9px 16px;font-size:13px" onclick="runNewSeason()">Clear Selected</button>
-    </div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
-
 <script>
 const SURL = 'https://syvpccbceajxzrhqumks.supabase.co';
 const SKEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5dnBjY2JjZWFqeHpyaHF1bWtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNTM5MTcsImV4cCI6MjA4ODcyOTkxN30.3nwWP0EtG9Vl-ZSPJlY4C7k2oGl-zUYIZjWAmvvFDmg';
 const db = supabase.createClient(SURL, SKEY);
 
 let players = [], sessions = [], attendance = [], circusRecords = [], circusHistory = [], strikeResets = [];
-let rSort = { col:'name', dir:1 };
+let rSort = { col: 'name', dir: 1 };
 let sessFilter = 'all';
+let sessSortCol = {};
 
-// ── Init ──
 async function init() {
   try {
-    setStatus('● Loading players…', 'var(--amber)');
-    const p = await db.from('players').select('*').order('name');
-    if (p.error) throw new Error('players: ' + p.error.message);
-    players = p.data || [];
+    setStatus('● Loading…', 'var(--amber)');
+    
+    const [pRes, sRes, aRes, cRes, chRes, srRes] = await Promise.all([
+      db.from('players').select('*').order('name'),
+      db.from('practices').select('*').order('date', { ascending: false }),
+      db.from('attendance').select('*'),
+      db.from('circus').select('*'),
+      db.from('circus_history').select('*'),
+      db.from('strike_resets').select('*')
+    ]);
 
-    setStatus('● Loading sessions…', 'var(--amber)');
-    const s = await db.from('practices').select('*').order('date', { ascending: false });
-    if (s.error) throw new Error('practices: ' + s.error.message);
-    sessions = s.data || [];
-
-    setStatus('● Loading attendance…', 'var(--amber)');
-    const a = await db.from('attendance').select('*');
-    if (a.error) throw new Error('attendance: ' + a.error.message);
-    attendance = a.data || [];
-
-    setStatus('● Loading circus…', 'var(--amber)');
-    const c = await db.from('circus').select('*');
-    circusRecords = c.error ? [] : (c.data || []);
-
-    const ch = await db.from('circus_history').select('*');
-    circusHistory = ch.error ? [] : (ch.data || []);
-
-    const sr = await db.from('strike_resets').select('*');
-    strikeResets = sr.error ? [] : (sr.data || []);
+    players = pRes.data || [];
+    sessions = sRes.data || [];
+    attendance = aRes.data || [];
+    circusRecords = cRes.data || [];
+    circusHistory = chRes.data || [];
+    strikeResets = srRes.data || [];
 
     setStatus('● Connected', 'var(--green)');
     refreshPosFilter();
@@ -509,947 +34,212 @@ async function init() {
     renderSessions();
     renderReports();
     renderCircus();
+
     document.getElementById('s-date').valueAsDate = new Date();
-  } catch(e) {
-    var msg = e && e.message ? e.message : String(e);
+  } catch (e) {
+    const msg = e?.message || String(e);
     setStatus('● Error: ' + msg, 'var(--red)');
-    document.getElementById('roster-body').innerHTML = '<tr><td colspan="9" class="empty" style="color:var(--red)">Failed to load: ' + msg + '</td></tr>';
-    console.error(e);
+    document.getElementById('roster-body').innerHTML = `<tr><td colspan="9" class="empty" style="color:var(--red)">Failed: ${msg}</td></tr>`;
   }
 }
 
 function setStatus(t, c) {
   const el = document.getElementById('status');
-  el.textContent = t; el.style.color = c;
+  el.textContent = t;
+  el.style.color = c;
 }
 
-// ── Page nav ──
 function showPage(name) {
-  ['roster','sessions','reports','circus'].forEach(function(n) {
-    document.getElementById('page-' + n).classList.toggle('active', n === name);
-    document.getElementById('tab-' + n).classList.toggle('active', n === name);
+  ['roster','sessions','reports','circus'].forEach(n => {
+    document.getElementById('page-'+n).classList.toggle('active', n===name);
+    document.getElementById('tab-'+n).classList.toggle('active', n===name);
   });
   if (name === 'reports') renderReports();
-  if (name === 'circus')  renderCircus();
+  if (name === 'circus') renderCircus();
 }
 
-// ── Helpers ──
-function esc(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-function dash() { return '<span style="color:var(--muted)">—</span>'; }
-function fmtDate(d) {
-  if (!d) return '';
-  var parts = d.split('-');
-  var dt = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
-  return dt.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
-}
-function lvlBadge(l) {
-  if (!l) return dash();
-  var cls = l==='Varsity'?'b-var':l==='JV'?'b-jv':l==='Freshman'?'b-fr':'bi';
-  return '<span class="b ' + cls + '">' + esc(l) + '</span>';
-}
-function grpBadge(g) {
-  if (!g) return dash();
-  return '<span class="b ' + (g==='AM'?'b-am':'b-pm') + '">' + esc(g) + '</span>';
-}
-var _toastTimer;
-function toast(msg) {
-  var el = document.getElementById('toast');
-  el.textContent = msg; el.classList.add('show');
-  clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 2800);
-}
+// ====================== SESSION ADD ======================
+async function addSession() {
+  const date = document.getElementById('s-date').value;
+  const type = document.getElementById('s-type').value;        // AM or PM (actual time)
+  const forGroup = document.getElementById('s-for-group').value; // forced group
+  const notes = document.getElementById('s-notes').value.trim();
 
-// ── Strike Calculator ──
-function getStrikes(playerId) {
-  var lastReset = null;
-  strikeResets.forEach(function(r) {
-    if (!r.player_id || r.player_id === playerId) {
-      if (!lastReset || r.reset_date > lastReset) lastReset = r.reset_date;
-    }
-  });
-
-  var strikeRecs = attendance.filter(function(a) {
-    if (a.player_id !== playerId) return false;
-    if (a.status !== 'absent' && a.status !== 'tardy') return false;
-    if (lastReset) {
-      var sess = sessions.find(function(s) { return s.id === a.practice_id; });
-      if (sess && sess.date <= lastReset) return false;
-    }
-    return true;
-  });
-
-  var strikeDates = {};
-  strikeRecs.forEach(function(a) {
-    var sess = sessions.find(function(s) { return s.id === a.practice_id; });
-    if (!sess) return;
-    var excusedOnDate = attendance.some(function(e) {
-      if (e.player_id !== playerId || e.status !== 'excused') return false;
-      var es = sessions.find(function(s) { return s.id === e.practice_id; });
-      return es && es.date === sess.date;
-    });
-    if (!excusedOnDate) strikeDates[sess.date] = true;
-  });
-  var total = Object.keys(strikeDates).length;
-
-  var completedRounds = circusHistory.filter(function(h) {
-    if (h.player_id !== playerId) return false;
-    if (lastReset && h.completed_at && h.completed_at.slice(0,10) <= lastReset) return false;
-    return true;
-  }).length;
-
-  var net = total - (completedRounds * 3);
-  if (net < 0) net = 0;
-  return net;
-}
-
-function getStrikesInCycle(playerId) {
-  return getStrikes(playerId) % 3;
-}
-
-function isDueForCircus(playerId) {
-  var s = getStrikes(playerId);
-  return s > 0 && s % 3 === 0;
-}
-
-function getTotalStrikes(playerId) {
-  var strikeRecs = attendance.filter(function(a) {
-    return a.player_id === playerId && (a.status === 'absent' || a.status === 'tardy');
-  });
-  var strikeDates = {};
-  strikeRecs.forEach(function(a) {
-    var sess = sessions.find(function(s) { return s.id === a.practice_id; });
-    if (!sess) return;
-    var excusedOnDate = attendance.some(function(e) {
-      if (e.player_id !== playerId || e.status !== 'excused') return false;
-      var es = sessions.find(function(s) { return s.id === e.practice_id; });
-      return es && es.date === sess.date;
-    });
-    if (!excusedOnDate) strikeDates[sess.date] = true;
-  });
-  return Object.keys(strikeDates).length;
-}
-
-// ── Circus Sync ──
-async function syncCircus() {
-  var toInsert = [];
-  players.forEach(function(p) {
-    if (p.active === false || p.active === 'false') return;
-    var alreadyOn = circusRecords.find(function(c) { return c.player_id === p.id; });
-    if (isDueForCircus(p.id) && !alreadyOn) {
-      toInsert.push({ player_id: p.id, makeups: 0, added_manually: false });
-    }
-  });
-
-  if (!toInsert.length) {
-    toast('All caught up — no new circus additions');
-    renderCircus();
+  if (!date) {
+    toast('Please select a date');
     return;
   }
 
-  var res = await db.from('circus').insert(toInsert).select();
-  if (res.error) { toast('Error: ' + res.error.message); return; }
-  circusRecords = circusRecords.concat(res.data || []);
-  toast('✓ Added ' + toInsert.length + ' player(s) to circus');
-  renderCircus();
-  renderRoster();
-}
+  // Use forced group if selected, otherwise use normal type
+  const sessionLabel = forGroup || type;
 
-// ── Makeup Tracking ──
-async function setMakeup(circusId, newCount) {
-  var rec = circusRecords.find(function(c) { return c.id === circusId; });
-  if (!rec) return;
-
-  if (newCount >= 3) {
-    if (!confirm(getPlayerName(rec.player_id) + ' has completed all 3 makeups. Clear them from circus?')) return;
-
-    var histRes = await db.from('circus_history').insert({
-      player_id: rec.player_id,
-      completed_at: new Date().toISOString()
-    }).select().single();
-
-    if (histRes.error) { toast('Error saving history: ' + histRes.error.message); return; }
-    circusHistory.push(histRes.data);
-
-    await db.from('circus').delete().eq('id', circusId);
-    circusRecords = circusRecords.filter(function(c) { return c.id !== circusId; });
-
-    toast('🎉 ' + getPlayerName(rec.player_id) + ' completed circus — strikes reset!');
-    renderCircus();
-    renderRoster();
-    renderReports();
+  const existing = sessions.find(s => s.date === date && s.label === sessionLabel);
+  if (existing) {
+    toast('Session already exists — opening it');
+    setTimeout(() => {
+      const body = document.getElementById('sb-' + existing.id);
+      const chev = document.getElementById('chev-' + existing.id);
+      if (body) body.classList.add('open');
+      if (chev) chev.textContent = '▴';
+      body?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 80);
     return;
   }
 
-  rec.makeups = newCount;
-  db.from('circus').update({ makeups: newCount }).eq('id', circusId);
-  renderCircus();
-  toast('Makeup updated ✓');
-}
-
-function getPlayerName(playerId) {
-  var p = players.find(function(x) { return x.id === playerId; });
-  return p ? p.name : 'Unknown';
-}
-
-async function removeFromCircus(circusId) {
-  if (!confirm('Remove this player from circus? (Strikes are NOT reset)')) return;
-  await db.from('circus').delete().eq('id', circusId);
-  circusRecords = circusRecords.filter(function(c) { return c.id !== circusId; });
-  toast('Removed from circus');
-  renderCircus();
-  renderRoster();
-}
-
-// ── Circus Render ──
-function renderCircus() {
-  var lvlFilter = document.getElementById('circus-filter').value;
-
-  var activeRecords = circusRecords.filter(function(c) {
-    var p = players.find(function(x) { return x.id === c.player_id; });
-    if (!p) return false;
-    if (lvlFilter && p.level !== lvlFilter) return false;
-    return true;
-  });
-
-  var totalOn = activeRecords.length;
-  var totalCompleted = circusHistory.filter(function(h) {
-    if (!lvlFilter) return true;
-    var p = players.find(function(x) { return x.id === h.player_id; });
-    return p && p.level === lvlFilter;
-  }).length;
-  var nearClear = activeRecords.filter(function(c) { return c.makeups === 2; }).length;
-
-  document.getElementById('circus-stats').innerHTML =
-    '<div class="stat-card"><div class="stat-lbl">On Circus</div><div class="stat-val" style="color:var(--orange)">' + totalOn + '</div><div class="stat-sub">active makeups needed</div></div>' +
-    '<div class="stat-card"><div class="stat-lbl">Completed</div><div class="stat-val" style="color:var(--green)">' + totalCompleted + '</div><div class="stat-sub">total rounds cleared</div></div>' +
-    '<div class="stat-card"><div class="stat-lbl">Almost Done</div><div class="stat-val" style="color:var(--amber)">' + nearClear + '</div><div class="stat-sub">2/3 makeups done</div></div>';
-
-  var tb = document.getElementById('circus-active-body');
-  if (!activeRecords.length) {
-    tb.innerHTML = '<tr><td colspan="7" class="empty">No players currently on circus 🎉</td></tr>';
-  } else {
-    tb.innerHTML = activeRecords.map(function(c) {
-      var p = players.find(function(x) { return x.id === c.player_id; });
-      if (!p) return '';
-      var cyclePos = getStrikesInCycle(p.id);
-      var strikePips = [1,2,3].map(function(i) {
-        var filled = cyclePos === 0 ? 3 : cyclePos;
-        var cls = 'strike-pip' + (i <= filled ? (filled >= 3 ? ' danger' : ' active') : '');
-        return '<div class="' + cls + '"></div>';
-      }).join('');
-
-      var dots = [1,2,3].map(function(i) {
-        var filled = i <= c.makeups;
-        return '<div class="dot' + (filled ? ' filled' : '') + '" onclick="setMakeup(\'' + c.id + '\',' + i + ')" title="Mark ' + i + ' makeup(s)"></div>';
-      }).join('');
-
-      var addedBy = c.added_manually
-        ? '<span class="b b-manual">Manual</span>'
-        : '<span class="b bi">Auto</span>';
-
-      return '<tr>' +
-        '<td><strong>' + esc(p.name) + '</strong></td>' +
-        '<td>' + lvlBadge(p.level) + '</td>' +
-        '<td class="hide-mobile">' + grpBadge(p.group_name) + '</td>' +
-        '<td><div class="strike-meter">' + strikePips + '</div></td>' +
-        '<td><div style="display:flex;align-items:center;gap:10px;"><div class="makeup-dots">' + dots + '</div><span style="font-size:11px;color:var(--muted)">' + c.makeups + '/3</span></div></td>' +
-        '<td>' + addedBy + '</td>' +
-        '<td><button class="btn-del" onclick="removeFromCircus(\'' + c.id + '\')">Remove</button></td>' +
-      '</tr>';
-    }).join('');
-  }
-
-  var historyMap = {};
-  circusHistory.forEach(function(h) {
-    if (!historyMap[h.player_id]) historyMap[h.player_id] = 0;
-    historyMap[h.player_id]++;
-  });
-
-  var histPlayers = players.filter(function(p) {
-    if (lvlFilter && p.level !== lvlFilter) return false;
-    return historyMap[p.id] > 0;
-  });
-
-  var hb = document.getElementById('circus-history-body');
-  if (!histPlayers.length) {
-    hb.innerHTML = '<tr><td colspan="4" class="empty">No history yet.</td></tr>';
-  } else {
-    hb.innerHTML = histPlayers
-      .sort(function(a,b) { return (historyMap[b.id]||0) - (historyMap[a.id]||0); })
-      .map(function(p) {
-        return '<tr>' +
-          '<td>' + esc(p.name) + '</td>' +
-          '<td>' + lvlBadge(p.level) + '</td>' +
-          '<td class="hide-mobile">' + grpBadge(p.group_name) + '</td>' +
-          '<td><span style="font-family:\'Bebas Neue\',sans-serif;font-size:20px;color:var(--green)">' + (historyMap[p.id]||0) + '</span></td>' +
-        '</tr>';
-      }).join('');
-  }
-}
-
-// ── Circus Manual Add Modal ──
-function openCircusAdd() {
-  var sel = document.getElementById('cm-player');
-  var available = players.filter(function(p) {
-    return !circusRecords.find(function(c) { return c.player_id === p.id; });
-  });
-  sel.innerHTML = '<option value="">— Select Player —</option>' +
-    available.map(function(p) {
-      return '<option value="' + p.id + '">' + esc(p.name) + (p.level ? ' (' + p.level + ')' : '') + '</option>';
-    }).join('');
-  document.getElementById('cm-reason').value = '';
-  document.getElementById('circus-modal').classList.add('open');
-}
-
-function closeCircusModal() {
-  document.getElementById('circus-modal').classList.remove('open');
-}
-
-async function saveCircusAdd() {
-  var playerId = document.getElementById('cm-player').value;
-  if (!playerId) { toast('Select a player'); return; }
-
-  var res = await db.from('circus').insert({
-    player_id: playerId,
-    makeups: 0,
-    added_manually: true
+  const res = await db.from('practices').insert({
+    date: date,
+    label: sessionLabel,           // determines which group sees it
+    session_type: type,            // keeps original time for clarity
+    notes: notes || null
   }).select().single();
 
-  if (res.error) { toast('Error: ' + res.error.message); return; }
-  circusRecords.push(res.data);
-  closeCircusModal();
-  toast('✓ Added to circus');
-  renderCircus();
-  renderRoster();
-}
-
-document.getElementById('circus-modal').addEventListener('click', function(e) {
-  if (e.target === e.currentTarget) closeCircusModal();
-});
-
-// ── Roster ──
-function refreshPosFilter() {
-  var sel = document.getElementById('r-pos');
-  var cur = sel.value;
-  var positions = players.map(function(p){ return p.position; }).filter(Boolean);
-  positions = positions.filter(function(v,i,a){ return a.indexOf(v)===i; }).sort();
-  sel.innerHTML = '<option value="">All Positions</option>' +
-    positions.map(function(p){ return '<option' + (p===cur?' selected':'') + '>' + p + '</option>'; }).join('');
-}
-
-function renderRoster() {
-  var search = document.getElementById('r-search').value.toLowerCase();
-  var level  = document.getElementById('r-level').value;
-  var group  = document.getElementById('r-group').value;
-  var pos    = document.getElementById('r-pos').value;
-  var activeFilter = document.getElementById('r-active').value;
-
-  var list = players.filter(function(p) {
-    if (search && p.name.toLowerCase().indexOf(search) === -1) return false;
-    if (level && p.level !== level) return false;
-    if (group && p.group_name !== group) return false;
-    if (pos && p.position !== pos) return false;
-    if (activeFilter === 'active' && (p.active === false || p.active === 'false')) return false;
-    if (activeFilter === 'inactive' && p.active !== false && p.active !== 'false') return false;
-    return true;
-  });
-
-  list.sort(function(a, b) {
-    var av = (a[rSort.col] || '').toString().toLowerCase();
-    var bv = (b[rSort.col] || '').toString().toLowerCase();
-    return av < bv ? -rSort.dir : av > bv ? rSort.dir : 0;
-  });
-
-  ['name','grade','period','position','level','group_name'].forEach(function(c) {
-    var el = document.getElementById('sa-' + c);
-    if (!el) return;
-    el.textContent = rSort.col === c ? (rSort.dir === 1 ? '↑' : '↓') : '↕';
-    el.parentElement.classList.toggle('sorted', rSort.col === c);
-  });
-
-  var tb = document.getElementById('roster-body');
-  if (!list.length) {
-    tb.innerHTML = '<tr><td colspan="9" class="empty">No players match filters.</td></tr>';
+  if (res.error) {
+    toast('Error: ' + res.error.message);
     return;
   }
-  tb.innerHTML = list.map(function(p) {
-    var strikes = getStrikes(p.id);
-    var onCircus = circusRecords.find(function(c) { return c.player_id === p.id; });
-    var strikeBadge;
-    if (onCircus) {
-      strikeBadge = '<span class="b b-strike">🎪 ' + strikes + ' strikes</span>';
-    } else if (isDueForCircus(p.id)) {
-      strikeBadge = '<span class="b br">' + strikes + ' ⚡ Circus!</span>';
-    } else if (strikes > 0) {
-      strikeBadge = '<span class="b ba">' + strikes + ' strike' + (strikes>1?'s':'') + '</span>';
-    } else {
-      strikeBadge = '<span style="color:var(--muted);font-size:11px">—</span>';
-    }
-    var isInactive = p.active === false || p.active === 'false';
-    var toggleBtn = isInactive
-      ? '<button class="btn-g" onclick="toggleActive(\'' + p.id + '\', true)">Reactivate</button>'
-      : '<button class="btn-gh" onclick="toggleActive(\'' + p.id + '\', false)">Set Inactive</button>';
-    return '<tr' + (isInactive ? ' style="opacity:.55"' : '') + '>' +
-      '<td>' + esc(p.name) + (isInactive ? ' <span class="b b-inactive">Inactive</span>' : '') + '</td>' +
-      '<td class="hide-mobile">' + (p.grade || dash()) + '</td>' +
-      '<td class="hide-mobile">' + (p.period || dash()) + '</td>' +
-      '<td>' + (p.position || dash()) + '</td>' +
-      '<td>' + lvlBadge(p.level) + '</td>' +
-      '<td>' + grpBadge(p.group_name) + '</td>' +
-      '<td>' + strikeBadge + '</td>' +
-      '<td style="display:flex;gap:6px;justify-content:flex-end">' +
-        toggleBtn +
-        '<button class="btn-edit" onclick="openEdit(\x27' + p.id + '\x27)">Edit</button>' +
-        '<button class="btn-del" onclick="delPlayer(\x27' + p.id + '\x27)">Remove</button>' +
-      '</td></tr>';
-  }).join('');
-}
 
-function sortBy(col) {
-  rSort.dir = rSort.col === col ? rSort.dir * -1 : 1;
-  rSort.col = col;
-  renderRoster();
-}
+  sessions.unshift(res.data);
+  document.getElementById('s-notes').value = '';
 
-// ── Modal ──
-function openAdd() {
-  document.getElementById('modal-title').textContent = 'Add Player';
-  document.getElementById('edit-id').value = '';
-  ['f-name','f-grade','f-period','f-pos'].forEach(function(id){ document.getElementById(id).value = ''; });
-  document.getElementById('f-level').value = '';
-  document.getElementById('f-group').value = '';
-  document.getElementById('f-active').value = 'true';
-  document.getElementById('modal').classList.add('open');
-  setTimeout(function(){ document.getElementById('f-name').focus(); }, 50);
-}
-
-function openEdit(id) {
-  var p = players.find(function(x){ return x.id === id; });
-  if (!p) return;
-  document.getElementById('modal-title').textContent = 'Edit Player';
-  document.getElementById('edit-id').value = id;
-  document.getElementById('f-name').value  = p.name || '';
-  document.getElementById('f-grade').value = p.grade || '';
-  document.getElementById('f-period').value = p.period || '';
-  document.getElementById('f-pos').value   = p.position || '';
-  document.getElementById('f-level').value = p.level || '';
-  document.getElementById('f-group').value = p.group_name || '';
-  document.getElementById('f-active').value = p.active === false ? 'false' : 'true';
-  document.getElementById('modal').classList.add('open');
-}
-
-function closeModal() { document.getElementById('modal').classList.remove('open'); }
-document.getElementById('modal').addEventListener('click', function(e) {
-  if (e.target === e.currentTarget) closeModal();
-});
-
-async function savePlayer() {
-  var id = document.getElementById('edit-id').value;
-  var payload = {
-    name:       document.getElementById('f-name').value.trim(),
-    grade:      document.getElementById('f-grade').value.trim() || null,
-    period:     document.getElementById('f-period').value.trim() || null,
-    position:   document.getElementById('f-pos').value.trim() || null,
-    level:      document.getElementById('f-level').value || null,
-    group_name: document.getElementById('f-group').value || null,
-    active:     document.getElementById('f-active').value !== 'false',
-  };
-  if (!payload.name) { toast('Name is required'); return; }
-
-  if (id) {
-    var res = await db.from('players').update(payload).eq('id', id);
-    if (res.error) { toast('Error: ' + res.error.message); return; }
-    var i = players.findIndex(function(p){ return p.id === id; });
-    if (i >= 0) players[i] = Object.assign({}, players[i], payload);
-    toast('Player updated ✓');
-  } else {
-    var res2 = await db.from('players').insert(payload).select().single();
-    if (res2.error) { toast('Error: ' + res2.error.message); return; }
-    players.push(res2.data);
-    players.sort(function(a,b){ return a.name.localeCompare(b.name); });
-    toast('Player added ✓');
-  }
-  closeModal();
-  refreshPosFilter();
-  renderRoster();
-  renderReports();
-}
-
-async function toggleActive(id, isActive) {
-  var active = isActive === true || isActive === 'true' || isActive === 1;
-  var res = await db.from('players').update({ active: active }).eq('id', id);
-  if (res.error) { toast('Error: ' + res.error.message); return; }
-  var p = players.find(function(x){ return x.id === id; });
-  if (p) p.active = active;
-  toast(active ? '✓ Player reactivated' : '✓ Player set to Inactive');
-  renderRoster(); renderSessions(); renderReports(); renderCircus();
-}
-
-async function delPlayer(id) {
-  if (!confirm('Remove this player from the roster?')) return;
-  await db.from('players').delete().eq('id', id);
-  players    = players.filter(function(p){ return p.id !== id; });
-  attendance = attendance.filter(function(a){ return a.player_id !== id; });
-  circusRecords = circusRecords.filter(function(c){ return c.player_id !== id; });
-  circusHistory = circusHistory.filter(function(h){ return h.player_id !== id; });
-  refreshPosFilter();
-  renderRoster(); renderSessions(); renderReports(); renderCircus();
-}
-
-// ── CSV Import ──
-function parseCSVLine(line) {
-  var result = [];
-  var cur = '';
-  var inQuotes = false;
-  for (var i = 0; i < line.length; i++) {
-    var ch = line[i];
-    if (ch === '"') {
-      if (inQuotes && line[i+1] === '"') { cur += '"'; i++; }
-      else { inQuotes = !inQuotes; }
-    } else if (ch === ',' && !inQuotes) {
-      result.push(cur.trim());
-      cur = '';
-    } else {
-      cur += ch;
-    }
-  }
-  result.push(cur.trim());
-  return result;
-}
-
-function looksLikeName(v) {
-  if (!v) return false;
-  return isNaN(v) && /^[A-Za-z]/.test(v.trim());
-}
-
-async function fixSplitNames() {
-  var toFix = players.filter(function(p) {
-    return p.grade && isNaN(p.grade) && /^[A-Za-z]/.test(p.grade.trim());
-  });
-  if (!toFix.length) { toast("No split names found — all clean!"); return; }
-
-  var preview = toFix.slice(0,5).map(function(p) {
-    return p.name.trim() + ", " + p.grade.trim();
-  }).join(", ");
-  if (toFix.length > 5) preview += " … and " + (toFix.length - 5) + " more";
-
-  if (!confirm("Found " + toFix.length + " players with split names.\n\nWill rename to: " + preview + "\n\nProceed?")) return;
-
-  var fixed = 0;
-  for (var i = 0; i < toFix.length; i++) {
-    var p = toFix[i];
-    var newName = p.name.trim() + ", " + p.grade.trim();
-    var res = await db.from("players").update({ name: newName, grade: null }).eq("id", p.id);
-    if (!res.error) {
-      p.name = newName;
-      p.grade = null;
-      fixed++;
-    }
-  }
-  players.sort(function(a,b){ return a.name.localeCompare(b.name); });
-  refreshPosFilter(); renderRoster(); renderReports();
-  toast("✓ Fixed " + fixed + " player names");
-}
-
-async function importCSV(event) {
-  var file = event.target.files[0]; if (!file) return;
-  var text = await file.text();
-  var lines = text.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
-  if (!lines.length) { toast('CSV is empty'); return; }
-
-  var first = lines[0].toLowerCase();
-  var hasHeader = ['name','grade','period','position','level','group'].some(function(h){ return first.indexOf(h) >= 0; });
-  var headers, rows;
-  if (hasHeader) {
-    headers = parseCSVLine(lines[0]).map(function(h){ return h.toLowerCase(); });
-    rows = lines.slice(1);
-  } else {
-    headers = ['name'];
-    rows = lines;
-  }
-
-  function col(k) { return headers.indexOf(k); }
-  var existing = {};
-  players.forEach(function(p){ existing[p.name.toLowerCase()] = true; });
-  var toAdd = [];
-
-  rows.forEach(function(r) {
-    var cols = parseCSVLine(r);
-    var name = col('name') >= 0 ? cols[col('name')] : cols[0];
-    if (!name) return;
-
-    var grade = col('grade') >= 0 ? cols[col('grade')] || null : null;
-    if (grade && looksLikeName(grade) && col('grade') === 1 && col('name') === 0) {
-      name = name.trim() + ', ' + grade.trim();
-      grade = null;
-    }
-
-    name = name.trim();
-    if (!name || existing[name.toLowerCase()]) return;
-    existing[name.toLowerCase()] = true;
-
-    toAdd.push({
-      name:       name,
-      grade:      grade,
-      period:     col('period') >= 0 ? cols[col('period')] || null : null,
-      position:   col('position') >= 0 ? cols[col('position')] || null : null,
-      level:      col('level') >= 0 ? cols[col('level')] || null : null,
-      group_name: col('group') >= 0 ? cols[col('group')] || null : null,
-    });
-  });
-
-  if (!toAdd.length) { toast('No new players found in CSV'); return; }
-  toast('Adding ' + toAdd.length + ' players…');
-  var res = await db.from('players').insert(toAdd).select();
-  if (res.error) { toast('Error: ' + res.error.message); return; }
-  players = players.concat(res.data);
-  players.sort(function(a,b){ return a.name.localeCompare(b.name); });
-  refreshPosFilter(); renderRoster(); renderReports();
-  toast('✓ Added ' + res.data.length + ' players');
-  event.target.value = '';
-}
-
-// ── Sessions ──
-function setFilter(val) {
-  sessFilter = val;
-  ['all','AM','PM'].forEach(function(v) {
-    var el = document.getElementById('pill-' + v);
-    if (!el) return;
-    el.className = 'pill' + (v === val ? (v==='AM' ? ' am-on' : v==='PM' ? ' pm-on' : ' on') : '');
-  });
   renderSessions();
+  renderReports();
+  toast(`${sessionLabel} session added ✓`);
 }
 
+// ====================== RENDER SESSIONS ======================
 function renderSessions() {
-  var openIds = {};
-  sessions.forEach(function(s) {
-    var b = document.getElementById('sb-' + s.id);
+  const openIds = {};
+  sessions.forEach(s => {
+    const b = document.getElementById('sb-' + s.id);
     if (b && b.classList.contains('open')) openIds[s.id] = true;
   });
 
-  var list = sessFilter === 'all' ? sessions : sessions.filter(function(s){ return s.label === sessFilter; });
-  var el = document.getElementById('sess-list');
-  if (!list.length) { el.innerHTML = '<div class="empty">No sessions yet.</div>'; return; }
+  let list = sessFilter === 'all' ? sessions : sessions.filter(s => s.label === sessFilter);
 
-  el.innerHTML = list.map(function(s) {
-    var att = attendance.filter(function(a){ return a.practice_id === s.id; });
-    var nPresent  = att.filter(function(a){ return a.status === 'present'; }).length;
-    var nAbsent   = att.filter(function(a){ return a.status === 'absent'; }).length;
-    var nTardy    = att.filter(function(a){ return a.status === 'tardy'; }).length;
-    var nInjured  = att.filter(function(a){ return a.status === 'injured'; }).length;
-    var nExcused  = att.filter(function(a){ return a.status === 'excused'; }).length;
-    var tc = s.label === 'AM' ? 'b-am' : 'b-pm';
+  const el = document.getElementById('sess-list');
+  if (!list.length) {
+    el.innerHTML = '<div class="empty">No sessions yet.</div>';
+    return;
+  }
 
-    var rows = players.filter(function(p){
-      if (p.active === false || p.active === 'false') return false;
-      if (p.group_name && p.group_name !== s.label) return false;
-      return true;
-    }).map(function(p) {
-      var rec = att.find(function(a){ return a.player_id === p.id; });
-      var status = rec ? rec.status : null;
-      return '<tr>' +
-        '<td>' + esc(p.name) + '</td>' +
-        '<td>' + lvlBadge(p.level) + '</td>' +
-        '<td>' + (p.position || dash()) + '</td>' +
-        '<td>' + grpBadge(p.group_name) + '</td>' +
-        '<td><div class="tog" id="tog-' + s.id + '-' + p.id + '">' +
-          '<button class="' + (status==='present'?'on-p':'') + '" onclick="setAtt(\'' + s.id + '\',\'' + p.id + '\',\'present\')">Present</button>' +
-          '<button class="' + (status==='absent' ?'on-a':'') + '" onclick="setAtt(\'' + s.id + '\',\'' + p.id + '\',\'absent\')">Absent</button>' +
-          '<button class="' + (status==='tardy'  ?'on-t':'') + '" onclick="setAtt(\'' + s.id + '\',\'' + p.id + '\',\'tardy\')">T</button>' +
-          '<button class="' + (status==='injured'?'on-i':'') + '" onclick="setAtt(\'' + s.id + '\',\'' + p.id + '\',\'injured\')">I</button>' +
-          '<button class="' + (status==='excused'?'on-e':'') + '" onclick="setAtt(\'' + s.id + '\',\'' + p.id + '\',\'excused\')">E</button>' +
-        '</div></td>' +
-      '</tr>';
+  el.innerHTML = list.map(s => {
+    const att = attendance.filter(a => a.practice_id === s.id);
+    const nP = att.filter(a => a.status === 'present').length;
+    const nA = att.filter(a => a.status === 'absent').length;
+    const nT = att.filter(a => a.status === 'tardy').length;
+    const nI = att.filter(a => a.status === 'injured').length;
+    const nE = att.filter(a => a.status === 'excused').length;
+
+    const isCrossGroup = s.label !== s.session_type;
+    const sessionTitle = isCrossGroup 
+      ? `${s.session_type} Session <span style="color:var(--amber)">→ ${s.label} Kids</span>`
+      : `${s.label} Session`;
+
+    const tc = s.label === 'AM' ? 'b-am' : 'b-pm';
+
+    const sortedP = getSortedPlayers(s.id, s.label);
+    const curSort = sessSortCol[s.id] || 'name';
+
+    const sortOpts = ['name','grade','level','position'].map(v => {
+      const lbl = v.charAt(0).toUpperCase() + v.slice(1);
+      return `<option value="${v}" ${curSort===v?'selected':''}>${lbl}</option>`;
     }).join('');
 
-    return '<div class="s-card">' +
-      '<div class="s-head" onclick="toggleSess(\'' + s.id + '\')">' +
-        '<span class="b ' + tc + '">' + s.label + '</span>' +
-        '<span class="s-date">' + fmtDate(s.date) + '</span>' +
-        '<span style="flex:1;font-size:12px;color:var(--muted)">' + (s.notes || '') + '</span>' +
-        '<span id="hdr-' + s.id + '">' +
-          '<span class="b bg">' + nPresent + ' present</span> ' +
-          '<span class="b br">' + nAbsent + ' absent</span> ' +
-          (nTardy  ? '<span class="b ba">' + nTardy + ' tardy</span> ' : '') +
-          (nInjured? '<span class="b bi">' + nInjured + ' inj</span> ' : '') +
-          (nExcused? '<span class="b b-excused">' + nExcused + ' exc</span>' : '') +
-        '</span>' +
-        '<button class="btn-del" onclick="event.stopPropagation();delSession(\'' + s.id + '\')">Delete</button>' +
-        '<span id="chev-' + s.id + '" style="font-size:11px;color:var(--muted)">▾</span>' +
-      '</div>' +
-      '<div class="s-body" id="sb-' + s.id + '">' +
-        '<table class="tbl" style="margin:0">' +
-          '<thead><tr><th>Name</th><th>Level</th><th>Position</th><th>Group</th><th>Attendance</th></tr></thead>' +
-          '<tbody>' + (players.length ? rows : '<tr><td colspan="5" class="empty">No players on roster.</td></tr>') + '</tbody>' +
-        '</table>' +
-      '</div>' +
-    '</div>';
+    const rows = sortedP.map(p => {
+      const rec = att.find(a => a.player_id === p.id);
+      const status = rec ? rec.status : null;
+      return `<tr>
+        <td>${esc(p.name)}</td>
+        <td>${lvlBadge(p.level)}</td>
+        <td class="hide-mobile">${p.grade || dash()}</td>
+        <td class="hide-mobile">${p.position || dash()}</td>
+        <td>${grpBadge(p.group_name)}</td>
+        <td><div class="tog">
+          <button class="${status==='present'?'on-p':''}" onclick="setAtt('${s.id}','${p.id}','present')">Present</button>
+          <button class="${status==='absent'?'on-a':''}" onclick="setAtt('${s.id}','${p.id}','absent')">Absent</button>
+          <button class="${status==='tardy'?'on-t':''}" onclick="setAtt('${s.id}','${p.id}','tardy')">T</button>
+          <button class="${status==='injured'?'on-i':''}" onclick="setAtt('${s.id}','${p.id}','injured')">I</button>
+          <button class="${status==='excused'?'on-e':''}" onclick="setAtt('${s.id}','${p.id}','excused')">E</button>
+        </div></td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="s-card">
+      <div class="s-head" onclick="toggleSess('${s.id}')">
+        <span class="b ${tc}">${s.label}</span>
+        <span class="s-date">${fmtDate(s.date)}</span>
+        <span style="flex:1;font-size:12px;color:var(--muted)">${esc(s.notes||'')}</span>
+        <span style="color:var(--muted);font-size:12px;">${sessionTitle}</span>
+        <span id="hdr-${s.id}">
+          <span class="b bg">${nP} present</span> 
+          <span class="b br">${nA} absent</span> 
+          ${nT ? `<span class="b ba">${nT} tardy</span> ` : ''}
+          ${nI ? `<span class="b bi">${nI} inj</span> ` : ''}
+          ${nE ? `<span class="b b-excused">${nE} exc</span>` : ''}
+        </span>
+        <button class="btn-del" onclick="event.stopPropagation();delSession('${s.id}')">Delete</button>
+        <span id="chev-${s.id}" style="font-size:11px;color:var(--muted)">▾</span>
+      </div>
+      <div class="s-body" id="sb-${s.id}">
+        <div class="mark-all-bar" onclick="event.stopPropagation()">
+          <span class="mark-all-lbl">Mark All:</span>
+          <button class="btn-mark m-p" onclick="markAll('${s.id}','present')">✓ Present</button>
+          <button class="btn-mark m-a" onclick="markAll('${s.id}','absent')">✗ Absent</button>
+          <button class="btn-mark m-t" onclick="markAll('${s.id}','tardy')">T Tardy</button>
+          <button class="btn-mark m-i" onclick="markAll('${s.id}','injured')">I Injured</button>
+          <button class="btn-mark m-e" onclick="markAll('${s.id}','excused')">E Excused</button>
+          <div class="sess-sort-wrap">
+            <span class="sess-sort-lbl">Sort:</span>
+            <select onchange="setSessSort('${s.id}',this.value)" onclick="event.stopPropagation()">${sortOpts}</select>
+          </div>
+        </div>
+        <table class="tbl" style="margin:0">
+          <thead><tr><th>Name</th><th>Level</th><th class="hide-mobile">Grade</th><th class="hide-mobile">Position</th><th>Group</th><th>Attendance</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="6" class="empty">No players.</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>`;
   }).join('');
 
-  Object.keys(openIds).forEach(function(id) {
-    var body = document.getElementById('sb-' + id);
-    var chev = document.getElementById('chev-' + id);
+  // Re-open previously open cards
+  Object.keys(openIds).forEach(id => {
+    const body = document.getElementById('sb-' + id);
+    const chev = document.getElementById('chev-' + id);
     if (body) body.classList.add('open');
     if (chev) chev.textContent = '▴';
   });
 }
 
-function toggleSess(id) {
-  var body = document.getElementById('sb-' + id);
-  var chev = document.getElementById('chev-' + id);
-  body.classList.toggle('open');
-  chev.textContent = body.classList.contains('open') ? '▴' : '▾';
-}
+// Keep the rest of your functions unchanged (getSortedPlayers, markAll, setAtt, etc.)
+// Just make sure getSortedPlayers uses s.label correctly — it already does.
 
-async function addSession() {
-  var date  = document.getElementById('s-date').value;
-  var type  = document.getElementById('s-type').value;
-  var notes = document.getElementById('s-notes').value.trim();
-  if (!date) { toast('Pick a date'); return; }
-
-  var existing = sessions.find(function(s){ return s.date === date && s.label === type; });
-  if (existing) {
-    document.getElementById('s-notes').value = '';
-    renderSessions();
-    setTimeout(function() {
-      var card = document.getElementById('sb-' + existing.id);
-      var chev = document.getElementById('chev-' + existing.id);
-      if (card && !card.classList.contains('open')) {
-        card.classList.add('open');
-        if (chev) chev.textContent = '▴';
-      }
-      var head = card ? card.previousElementSibling : null;
-      if (head) head.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 50);
-    toast('Session already exists — opened it ↓');
-    return;
-  }
-
-  var res = await db.from('practices').insert({ date: date, label: type, notes: notes || null }).select().single();
-  if (res.error) { toast('Error: ' + res.error.message); return; }
-  sessions.unshift(res.data);
-  document.getElementById('s-notes').value = '';
-  renderSessions(); renderReports();
-  toast(type + ' session added ✓');
-}
-
-async function delSession(id) {
-  if (!confirm('Delete this session and all attendance records?')) return;
-  await db.from('practices').delete().eq('id', id);
-  sessions   = sessions.filter(function(s){ return s.id !== id; });
-  attendance = attendance.filter(function(a){ return a.practice_id !== id; });
-  renderSessions(); renderReports(); renderCircus();
-}
-
-async function setAtt(sessionId, playerId, status) {
-  var existing = attendance.find(function(a){ return a.practice_id === sessionId && a.player_id === playerId; });
-  if (existing) {
-    if (existing.status === status) return;
-    existing.status = status;
-    renderSessions(); renderReports(); renderRoster(); renderCircus();
-    db.from('attendance').update({ status: status }).eq('id', existing.id);
-  } else {
-    var tempRecord = { id: 'temp-' + Date.now(), practice_id: sessionId, player_id: playerId, status: status };
-    attendance.push(tempRecord);
-    renderSessions(); renderReports(); renderRoster(); renderCircus();
-    var r2 = await db.from('attendance').insert({ practice_id: sessionId, player_id: playerId, status: status }).select().single();
-    if (r2.data) {
-      var idx = attendance.indexOf(tempRecord);
-      if (idx >= 0) attendance[idx] = r2.data;
-    }
-  }
-}
-
-// ── Reports ──
-function renderReports() {
-  var lvl  = document.getElementById('rpt-level').value;
-  var grp  = document.getElementById('rpt-group').value;
-  var st   = document.getElementById('rpt-sess').value;
-
-  var fp = players.filter(function(p){ return p.active !== false && p.active !== 'false' && (!lvl || p.level===lvl) && (!grp || p.group_name===grp); });
-  var fs = sessions.filter(function(s){ return !st || s.label===st; });
-
-  var totP=0,totA=0,totT=0,totI=0,totE=0;
-  attendance.forEach(function(a) {
-    if (!fp.find(function(p){ return p.id===a.player_id; })) return;
-    if (!fs.find(function(s){ return s.id===a.practice_id; })) return;
-    if (a.status==='present') totP++;
-    if (a.status==='absent')  totA++;
-    if (a.status==='tardy')   totT++;
-    if (a.status==='injured') totI++;
-    if (a.status==='excused') totE++;
+function getSortedPlayers(sessionId, label) {
+  const col = sessSortCol[sessionId] || 'name';
+  let list = players.filter(p => {
+    if (p.active === false || p.active === 'false') return false;
+    if (p.group_name && p.group_name !== label) return false;
+    return true;
   });
-  var totalPossible = fs.length * fp.length;
-  var rate = totalPossible ? Math.round(totP / totalPossible * 100) : 0;
 
-  document.getElementById('rpt-stats').innerHTML =
-    '<div class="stat-card"><div class="stat-lbl">Attendance Rate</div><div class="stat-val" style="color:var(--green)">' + rate + '%</div><div class="stat-sub">' + totP + ' of ' + totalPossible + ' slots</div></div>' +
-    '<div class="stat-card"><div class="stat-lbl">Sessions</div><div class="stat-val" style="color:var(--green)">' + fs.length + '</div><div class="stat-sub">AM: ' + sessions.filter(function(s){return s.label==='AM';}).length + ' · PM: ' + sessions.filter(function(s){return s.label==='PM';}).length + '</div></div>' +
-    '<div class="stat-card"><div class="stat-lbl">Players</div><div class="stat-val" style="color:var(--green)">' + fp.length + '</div><div class="stat-sub">filtered roster</div></div>' +
-    '<div class="stat-card"><div class="stat-lbl">Tardy</div><div class="stat-val" style="color:var(--amber)">' + totT + '</div><div class="stat-sub">total instances</div></div>' +
-    '<div class="stat-card"><div class="stat-lbl">Injured</div><div class="stat-val" style="color:var(--blue)">' + totI + '</div><div class="stat-sub">total instances</div></div>' +
-    '<div class="stat-card"><div class="stat-lbl">Excused</div><div class="stat-val" style="color:#80cbc4">' + totE + '</div><div class="stat-sub">total instances</div></div>';
-
-  if (!fp.length) {
-    document.getElementById('rpt-body').innerHTML = '<tr><td colspan="12" class="empty">No players match filters.</td></tr>';
-    return;
-  }
-
-  var rows = fp.map(function(p) {
-    var myAtt = attendance.filter(function(a){ return a.player_id===p.id && fs.find(function(s){ return s.id===a.practice_id; }); });
-    var present = myAtt.filter(function(a){ return a.status==='present'; }).length;
-    var absent  = myAtt.filter(function(a){ return a.status==='absent'; }).length;
-    var tardy   = myAtt.filter(function(a){ return a.status==='tardy'; }).length;
-    var injured = myAtt.filter(function(a){ return a.status==='injured'; }).length;
-    var excused = myAtt.filter(function(a){ return a.status==='excused'; }).length;
-    var r = fs.length ? Math.round(present / fs.length * 100) : 0;
-    var strikes = getStrikes(p.id);
-    var onCircus = circusRecords.find(function(c){ return c.player_id === p.id; });
-
-    var strikeBadge = onCircus
-      ? '<span class="b b-strike">🎪 ' + strikes + '</span>'
-      : isDueForCircus(p.id)
-        ? '<span class="b br">' + strikes + ' ⚡</span>'
-        : strikes > 0
-          ? '<span class="b ba">' + strikes + '</span>'
-          : '<span style="color:var(--muted);font-size:11px">—</span>';
-
-    var notable = myAtt
-      .filter(function(a){ return a.status==='absent'||a.status==='tardy'||a.status==='injured'||a.status==='excused'; })
-      .map(function(a) {
-        var sess = fs.find(function(s){ return s.id===a.practice_id; });
-        return sess ? { date: sess.date, label: sess.label, status: a.status } : null;
-      })
-      .filter(Boolean)
-      .sort(function(a,b){ return a.date.localeCompare(b.date); });
-
-    var chips = notable.map(function(d) {
-      var parts = d.date.split('-');
-      var dt = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
-      var lbl = dt.toLocaleDateString('en-US', { month:'short', day:'numeric' });
-      var cls = d.status==='tardy' ? 'chip-t' : d.status==='injured' ? 'chip-i' : d.status==='excused' ? 'chip-e' : 'chip-a';
-      var prefix = d.status==='tardy' ? 'T ' : d.status==='injured' ? 'I ' : d.status==='excused' ? 'E ' : '';
-      return '<span class="chip ' + cls + '">' + prefix + d.label + ' ' + lbl + '</span>';
-    }).join('');
-
-    return { p:p, present:present, absent:absent, tardy:tardy, injured:injured, excused:excused, rate:r, chips:chips, strikeBadge:strikeBadge };
-  }).sort(function(a,b){ return b.rate - a.rate; });
-
-  document.getElementById('rpt-body').innerHTML = rows.map(function(row) {
-    var r = row.p;
-    var bar = '<div class="bar-wrap"><div class="bar-bg"><div class="bar-fill" style="width:' + row.rate + '%"></div></div><div class="bar-pct">' + row.rate + '%</div></div>';
-    return '<tr>' +
-      '<td>' + esc(r.name) + '</td>' +
-      '<td>' + lvlBadge(r.level) + '</td>' +
-      '<td>' + grpBadge(r.group_name) + '</td>' +
-      '<td>' + (r.position || dash()) + '</td>' +
-      '<td><span class="b bg">' + row.present + '</span></td>' +
-      '<td><span class="b br">' + row.absent + '</span></td>' +
-      '<td><span class="b ba">' + row.tardy + '</span></td>' +
-      '<td><span class="b bi">' + row.injured + '</span></td>' +
-      '<td><span class="b b-excused">' + row.excused + '</span></td>' +
-      '<td>' + row.strikeBadge + '</td>' +
-      '<td>' + bar + '</td>' +
-      '<td><div class="chips">' + (row.chips || '<span style="color:var(--muted);font-size:11px">—</span>') + '</div></td>' +
-    '</tr>';
-  }).join('');
-}
-
-// ── Export ──
-function exportCSV() {
-  var headers = ['Player','Grade','Period','Position','Level','Group','Strikes','OnCircus'].concat(
-    sessions.map(function(s){ return s.label + ' ' + s.date; })
-  );
-  var rows = [headers];
-  players.forEach(function(p) {
-    var onCircus = circusRecords.find(function(c){ return c.player_id===p.id; }) ? 'Yes' : 'No';
-    var row = [p.name, p.grade||'', p.period||'', p.position||'', p.level||'', p.group_name||'', getStrikes(p.id), onCircus];
-    sessions.forEach(function(s) {
-      var rec = attendance.find(function(a){ return a.player_id===p.id && a.practice_id===s.id; });
-      row.push(rec ? rec.status : 'unmarked');
-    });
-    rows.push(row);
+  // sorting logic remains the same...
+  list.sort((a, b) => {
+    if (col === 'grade') {
+      const an = parseFloat(a.grade), bn = parseFloat(b.grade);
+      if (!isNaN(an) && !isNaN(bn)) return an - bn;
+      return (a.grade || '').localeCompare(b.grade || '');
+    }
+    if (col === 'level') {
+      const o = { Freshman: 1, JV: 2, Varsity: 3 };
+      return (o[a.level] || 99) - (o[b.level] || 99);
+    }
+    const av = (a[col] || '').toString().toLowerCase();
+    const bv = (b[col] || '').toString().toLowerCase();
+    return av < bv ? -1 : av > bv ? 1 : 0;
   });
-  var csv = rows.map(function(r){ return r.join(','); }).join('\n');
-  var a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-  a.download = 'attendance_export.csv';
-  a.click();
-  toast('CSV exported ✓');
+  return list;
 }
 
-// ── Strike Reset ──
-function openStrikeReset() {
-  document.getElementById('rs-date').valueAsDate = new Date();
-  document.getElementById('rs-reason').value = '';
-  document.getElementById('reset-modal').classList.add('open');
-}
-function closeResetModal() { document.getElementById('reset-modal').classList.remove('open'); }
-document.getElementById('reset-modal').addEventListener('click', function(e) {
-  if (e.target === e.currentTarget) closeResetModal();
-});
-async function runStrikeReset() {
-  var date = document.getElementById('rs-date').value;
-  var reason = document.getElementById('rs-reason').value.trim();
-  if (!date) { toast('Pick a date'); return; }
-  if (!confirm('Reset all strikes as of ' + date + '? History is preserved.')) return;
-  var res = await db.from('strike_resets').insert({ reset_date: date, reason: reason || null }).select().single();
-  if (res.error) { toast('Error: ' + res.error.message); return; }
-  strikeResets.push(res.data);
-  closeResetModal();
-  toast('✓ Strikes reset as of ' + date);
-  renderRoster(); renderReports(); renderCircus();
-}
+// ====================== HTML UPDATE ======================
+// Replace your old add session row with this new one:
 
-// ── New Season ──
-function openNewSeason() {
-  document.getElementById('ns-players').checked = false;
-  document.getElementById('ns-sessions').checked = false;
-  document.getElementById('ns-circus').checked = false;
-  document.getElementById('ns-confirm').value = '';
-  document.getElementById('season-modal').classList.add('open');
-}
-function closeSeasonModal() { document.getElementById('season-modal').classList.remove('open'); }
-document.getElementById('season-modal').addEventListener('click', function(e) {
-  if (e.target === e.currentTarget) closeSeasonModal();
-});
-async function runNewSeason() {
-  var confirm_val = document.getElementById('ns-confirm').value.trim();
-  if (confirm_val !== 'RESET') { toast('Type RESET to confirm'); return; }
-
-  var doPlayers  = document.getElementById('ns-players').checked;
-  var doSessions = document.getElementById('ns-sessions').checked;
-  var doCircus   = document.getElementById('ns-circus').checked;
-  if (!doPlayers && !doSessions && !doCircus) { toast('Select at least one option'); return; }
-
-  closeSeasonModal();
-  toast('Clearing…');
-  try {
-    if (doCircus) {
-      await db.from('circus_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await db.from('circus').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      circusRecords = []; circusHistory = [];
-    }
-    if (doSessions) {
-      await db.from('attendance').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await db.from('practices').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      attendance = []; sessions = [];
-    }
-    if (doPlayers) {
-      await db.from('players').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      players = [];
-    }
-    refreshPosFilter();
-    renderRoster(); renderSessions(); renderReports(); renderCircus();
-    toast('✓ Season reset complete');
-  } catch(e) {
-    toast('Error: ' + e.message);
-  }
-}
-
-init();
-</script>
-</body>
-</html>
+// In the SESSIONS page, replace this block:
