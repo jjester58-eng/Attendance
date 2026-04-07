@@ -279,7 +279,7 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
   <p class="section-title">Practice</p>
   <div class="row">
     <input type="date" id="s-date">
-    <select id="s-type"><option value="AM">AM (Morning)</option><option value="PM">PM (Afternoon)</option></select>
+    <select id="s-type"><option value="AM">AM</option><option value="PM">PM</option></select>
     <input type="text" id="s-notes" class="grow" placeholder="Notes (optional)">
     <button class="btn-g" onclick="addSession()">+ Add Session</button>
   </div>
@@ -403,6 +403,16 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
         <input type="text" id="new-sport-name" class="grow" placeholder="Sport name (e.g. Basketball)">
         <button class="btn-g" onclick="addSport()">Add</button>
       </div>
+      <div style="display:flex;align-items:center;gap:14px;margin-top:8px;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--muted);text-transform:none;letter-spacing:0;">
+          <input type="checkbox" id="new-sport-no-emoji" style="width:14px;height:14px;accent-color:var(--green);" onchange="document.getElementById('new-sport-emoji').disabled=this.checked;if(this.checked)document.getElementById('new-sport-emoji').value='';">
+          No emoji
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--muted);text-transform:none;letter-spacing:0;">
+          <input type="checkbox" id="new-sport-circus" style="width:14px;height:14px;accent-color:var(--orange);">
+          <span style="color:var(--orange)">🎪 Enable Circus tracking</span>
+        </label>
+      </div>
     </div>
     <div class="m-actions" style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
       <button class="btn-gh" onclick="closeSportModal()">Done</button>
@@ -416,7 +426,15 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
     <h2>Welcome! Set Up Your First Sport</h2>
     <p style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6">This app supports up to 6 sports. Start by adding your first one — Circus tracking will be enabled for it automatically.</p>
     <div class="mf"><label>Sport Name *</label><input type="text" id="setup-name" placeholder="e.g. Football"></div>
-    <div class="mf"><label>Emoji</label><input type="text" id="setup-emoji" placeholder="🏈" maxlength="2" style="width:80px"></div>
+    <div class="mf"><label>Emoji <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input type="text" id="setup-emoji" placeholder="🏈" maxlength="2" style="width:70px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--muted);text-transform:none;letter-spacing:0;">
+          <input type="checkbox" id="setup-no-emoji" style="width:14px;height:14px;accent-color:var(--green);" onchange="document.getElementById('setup-emoji').disabled=this.checked;if(this.checked)document.getElementById('setup-emoji').value='';">
+          No emoji
+        </label>
+      </div>
+    </div>
     <div class="mf" style="background:#1a1a00;border:1px solid #3a3a00;border-radius:8px;padding:14px;">
       <p style="font-size:12px;color:var(--amber);font-weight:600;margin-bottom:8px;">⚠ Database Setup Required</p>
       <p style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:10px;">Run this SQL in your Supabase SQL editor to add multi-sport support:</p>
@@ -474,7 +492,7 @@ function applySportTheme(sport){
   var idx=sports.findIndex(function(s){return s.id===sport.id;});
   var color=getSportColor(idx<0?0:idx);
   document.documentElement.style.setProperty('--sport-accent',color);
-  document.getElementById('app-title').textContent=(sport.emoji?sport.emoji+' ':'')+sport.name+' Attendance';
+  document.getElementById('app-title').textContent=(sport.emoji&&sport.emoji.trim()?sport.emoji+' ':'')+sport.name+' Attendance';
   // Circus tab: only for sports with has_circus
   var ct=document.getElementById('tab-circus');
   ct.classList.toggle('hidden',!sport.has_circus);
@@ -572,7 +590,7 @@ function renderSportBar(){
   var bar=document.getElementById('sport-bar');
   var btns=sports.map(function(sport,idx){
     var active=currentSport&&sport.id===currentSport.id;
-    return'<button class="sport-btn'+(active?' active':'')+'" onclick="selectSport(sports['+idx+'])" style="'+(active?'color:'+getSportColor(idx)+';border-bottom-color:'+getSportColor(idx):'')+'">'+(sport.emoji?'<span class="sport-emoji">'+sport.emoji+'</span>':'')+esc(sport.name)+(sport.has_circus?' 🎪':'')+' </button>';
+    return'<button class="sport-btn'+(active?' active':'')+'" onclick="selectSport(sports['+idx+'])" style="'+(active?'color:'+getSportColor(idx)+';border-bottom-color:'+getSportColor(idx):'')+'">'+(sport.emoji&&sport.emoji.trim()?'<span class="sport-emoji">'+sport.emoji+'</span>':'')+esc(sport.name)+(sport.has_circus?' 🎪':'')+' </button>';
   }).join('');
   bar.innerHTML=btns+'<button class="sport-mgr-btn" onclick="openSportManager()">⚙ Sports</button>';
 }
@@ -589,46 +607,69 @@ function renderSportList(){
   var el=document.getElementById('sport-list-render');
   if(!sports.length){el.innerHTML='<div class="empty" style="padding:20px">No sports yet.</div>';return;}
   el.innerHTML=sports.map(function(sport,idx){
+    var circusBtn=sport.has_circus
+      ?'<button class="btn-edit" style="color:var(--orange);border-color:#3a1800;font-size:11px;padding:5px 9px;" onclick="toggleCircus(\''+sport.id+'\',false)">🎪 On</button>'
+      :'<button class="btn-gh" style="font-size:11px;padding:5px 9px;" onclick="toggleCircus(\''+sport.id+'\',true)">+ Circus</button>';
     return'<div class="sport-list-item">'+
-      '<span class="sport-list-emoji">'+(sport.emoji||'🏅')+'</span>'+
+      '<span class="sport-list-emoji">'+(sport.emoji&&sport.emoji.trim()?sport.emoji:'')+'</span>'+
       '<span class="sport-list-name">'+esc(sport.name)+'</span>'+
-      (sport.has_circus?'<span class="sport-list-football-badge">🎪 Circus</span>':'')+
+      circusBtn+
       '<button class="btn-edit" onclick="renameSport(\''+sport.id+'\')">Rename</button>'+
       '<button class="btn-del" onclick="deleteSport(\''+sport.id+'\')">Delete</button>'+
     '</div>';
   }).join('');
-  // Hide add section if at max
   document.getElementById('sport-add-section').style.display=sports.length>=6?'none':'block';
 }
-
 async function addSport(){
   var name=document.getElementById('new-sport-name').value.trim();
-  var emoji=document.getElementById('new-sport-emoji').value.trim()||'🏅';
+  var noEmoji=document.getElementById('new-sport-no-emoji').checked;
+  var emoji=noEmoji?'':( document.getElementById('new-sport-emoji').value.trim()||'🏅');
+  var hasCircus=document.getElementById('new-sport-circus').checked;
   if(!name){toast('Enter a sport name');return;}
   if(sports.length>=6){toast('Maximum 6 sports reached');return;}
-  var hasCircus=sports.length===0; // first sport gets circus
   var res=await db.from('sports').insert({name:name,emoji:emoji,has_circus:hasCircus,sort_order:sports.length}).select().single();
   if(res.error){toast('Error: '+res.error.message);return;}
   sports.push(res.data);
   document.getElementById('new-sport-name').value='';
   document.getElementById('new-sport-emoji').value='';
+  document.getElementById('new-sport-no-emoji').checked=false;
+  document.getElementById('new-sport-emoji').disabled=false;
+  document.getElementById('new-sport-circus').checked=false;
   renderSportList();renderSportBar();
-  toast('✓ '+name+' added');
+  toast('✓ '+name+' added'+(hasCircus?' with 🎪 Circus':''));
 }
 
 async function renameSport(id){
   var sport=sports.find(function(s){return s.id===id;});if(!sport)return;
   var newName=prompt('Rename "'+sport.name+'" to:',sport.name);
   if(!newName||!newName.trim())return;
-  var newEmoji=prompt('Emoji (leave blank to keep):',sport.emoji||'');
-  var update={name:newName.trim()};
-  if(newEmoji!==null&&newEmoji.trim())update.emoji=newEmoji.trim();
+  var newEmoji=prompt('Emoji (leave blank to remove, keep current to keep it):',sport.emoji||'');
+  if(newEmoji===null)return; // cancelled
+  var update={name:newName.trim(),emoji:newEmoji.trim()};
   var res=await db.from('sports').update(update).eq('id',id);
   if(res.error){toast('Error: '+res.error.message);return;}
   Object.assign(sport,update);
   renderSportList();renderSportBar();
   if(currentSport&&currentSport.id===id){applySportTheme(currentSport);}
   toast('✓ Renamed');
+}
+
+async function toggleCircus(id,enable){
+  var sport=sports.find(function(s){return s.id===id;});if(!sport)return;
+  var action=enable?'Enable':'Disable';
+  if(!confirm(action+' Circus tracking for "'+sport.name+'"?'))return;
+  var res=await db.from('sports').update({has_circus:enable}).eq('id',id);
+  if(res.error){toast('Error: '+res.error.message);return;}
+  sport.has_circus=enable;
+  renderSportList();renderSportBar();
+  if(currentSport&&currentSport.id===id){
+    currentSport.has_circus=enable;
+    applySportTheme(currentSport);
+    if(enable){var c=await db.from('circus').select('*').eq('sport_id',id);circusRecords=c.error?[]:(c.data||[]);var ch=await db.from('circus_history').select('*').eq('sport_id',id);circusHistory=ch.error?[]:(ch.data||[]);renderCircus();}
+    else{circusRecords=[];circusHistory=[];}
+    renderRoster();
+  }
+  toast('✓ Circus '+(enable?'enabled':'disabled')+' for '+sport.name);
 }
 
 async function deleteSport(id){
@@ -659,7 +700,8 @@ async function deleteSport(id){
 // ── Setup (first run) ──
 async function runSetup(){
   var name=document.getElementById('setup-name').value.trim();
-  var emoji=document.getElementById('setup-emoji').value.trim()||'🏈';
+  var noEmoji=document.getElementById('setup-no-emoji')&&document.getElementById('setup-no-emoji').checked;
+  var emoji=noEmoji?'':(document.getElementById('setup-emoji').value.trim()||'🏈');
   if(!name){toast('Enter a sport name');return;}
   var res=await db.from('sports').insert({name:name,emoji:emoji,has_circus:true,sort_order:0}).select().single();
   if(res.error){toast('Error — did you run the SQL migration? '+res.error.message);return;}
@@ -1132,4 +1174,3 @@ init();
 </script>
 </body>
 </html>
-
