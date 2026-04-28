@@ -445,9 +445,10 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
 <div class="toast" id="toast"></div>
 
 <script>
-const SURL='https://njhadzcwrccxyrvzbeou.supabase.co';
-const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5qaGFkemN3cmNjeHlydnpiZW91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczNzE1ODgsImV4cCI6MjA5Mjk0NzU4OH0.W3OCCUZZkt7ExAzxlFSV3cnT8d0nVwdAqqHsXce4mtI';const db=supabase.createClient(SURL,SKEY);
+const SURL = 'https://syvpccbceajxzrhqumks.supabase.co';
+const SKEY = 'sb_publishable_QIfoVAd0J4UohRJp-MQpDw_W_Y-Vswb'; // or matching anon key from that SAME project
 
+const db = supabase.createClient(SURL, SKEY);
 // ── State ──
 let sports=[];
 let currentSport=null; // the active sport object
