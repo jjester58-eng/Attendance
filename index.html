@@ -874,14 +874,17 @@ function updateRosterSelectedCount(){
   var n=Object.keys(rosterSelected).filter(function(id){return rosterSelected[id];}).length;
   document.getElementById('roster-selected-count').textContent=n+' player'+(n===1?'':'s')+' selected';
 }
+function setRosterFiltersDisabled(disabled){
+  ['r-search','r-level','r-group','r-pos','r-active'].forEach(function(id){document.getElementById(id).disabled=disabled;});
+}
 function toggleRosterGrid(){
-  rosterGridMode=!rosterGridMode;rosterSelected={};
+  rosterGridMode=!rosterGridMode;rosterSelected={};setRosterFiltersDisabled(rosterGridMode);
   document.getElementById('roster-grid-toolbar').classList.toggle('open',rosterGridMode);
   document.getElementById('roster-grid-toggle').textContent=rosterGridMode?'▦ Spreadsheet Mode On':'▦ Edit Grid';
   renderRoster();
 }
 function cancelRosterGrid(){
-  rosterGridMode=false;rosterSelected={};
+  rosterGridMode=false;rosterSelected={};setRosterFiltersDisabled(false);
   document.getElementById('roster-grid-toolbar').classList.remove('open');
   document.getElementById('roster-grid-toggle').textContent='▦ Edit Grid';renderRoster();
 }
@@ -946,6 +949,7 @@ function renderRoster(){
     }).join('');updateRosterSelectedCount();return;
   }
   head.innerHTML='<th class="sort-col" onclick="sortBy(\\'name\\')">Name <span id="sa-name">↕</span></th><th class="sort-col hide-mobile" onclick="sortBy(\\'grade\\')">Grade <span id="sa-grade">↕</span></th><th class="sort-col hide-mobile" onclick="sortBy(\\'period\\')">Period <span id="sa-period">↕</span></th><th class="sort-col" onclick="sortBy(\\'position\\')">Position <span id="sa-position">↕</span></th><th class="sort-col" onclick="sortBy(\\'level\\')">Level <span id="sa-level">↕</span></th><th class="sort-col" onclick="sortBy(\\'group_name\\')">Group <span id="sa-group_name">↕</span></th><th>Strikes</th><th></th>';
+  ['name','grade','period','position','level','group_name'].forEach(function(c){var el=document.getElementById('sa-'+c);if(el){el.textContent=rSort.col===c?(rSort.dir===1?'↑':'↓'):'↕';el.parentElement.classList.toggle('sorted',rSort.col===c);}});
   tb.innerHTML=list.map(function(p){
     var strikes=getStrikes(p.id),oc=currentSport&&currentSport.has_circus?circusRecords.find(function(c){return c.player_id===p.id;}):null;
     var sb=oc?'<span class="b b-strike">🎪 '+strikes+'</span>':isDueForCircus(p.id)&&currentSport&&currentSport.has_circus?'<span class="b br">'+strikes+' ⚡ Circus!</span>':strikes>0?'<span class="b ba">'+strikes+' strike'+(strikes>1?'s':'')+'</span>':'<span style="color:var(--muted);font-size:11px">—</span>';
