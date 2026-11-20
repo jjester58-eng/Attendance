@@ -74,6 +74,13 @@ button{padding:9px 16px;border-radius:6px;border:none;font-family:inherit;font-s
 .pill.am-on{background:#0d1a2a;border-color:var(--blue);color:var(--blue);}
 .pill.pm-on{background:#2a1a0d;border-color:var(--amber);color:var(--amber);}
 
+.roster-grid-toolbar{display:none;align-items:center;gap:8px;flex-wrap:wrap;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin:0 0 12px}
+.roster-grid-toolbar.open{display:flex}.roster-grid-toolbar input,.roster-grid-toolbar select{padding:7px 9px;min-width:100px}
+.roster-grid-cell{width:100%;min-width:74px;padding:7px 8px!important;border-radius:4px!important;font-size:12px!important;background:#101010!important}
+.roster-grid-row td{padding:6px 8px!important}.roster-grid-row .hide-mobile{display:table-cell!important}
+.roster-grid-row input[type=checkbox],.roster-grid-check{width:16px;height:16px;accent-color:var(--sport-accent);cursor:pointer}
+.roster-grid-count{font-size:12px;color:var(--muted);margin-right:auto}
+@media(max-width:700px){.roster-grid-toolbar>*{flex:1}}
 /* table */
 .tbl{width:100%;border-collapse:collapse;}
 .tbl th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:9px 12px;border-bottom:1px solid var(--border);white-space:nowrap;user-select:none;}
@@ -253,6 +260,7 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
     <select id="r-pos" onchange="renderRoster()"><option value="">All Positions</option></select>
     <select id="r-active" onchange="renderRoster()"><option value="active">Active Only</option><option value="inactive">Inactive Only</option><option value="">All Players</option></select>
     <button class="btn-g" onclick="openAdd()">+ Add Player</button>
+    <button class="btn-gh" id="roster-grid-toggle" onclick="toggleRosterGrid()">▦ Edit Grid</button>
     <button class="btn-gh" onclick="document.getElementById('csv-in').click()">⬆ CSV</button>
     <button class="btn-gh" onclick="fixSplitNames()">🔧 Fix Names</button>
     <button class="btn-gh" style="margin-left:auto" onclick="openStrikeReset()">↺ Reset Strikes</button>
@@ -260,6 +268,14 @@ code{background:#1e1e1e;padding:1px 5px;border-radius:3px;font-size:11px;}
     <input type="file" id="csv-in" accept=".csv" style="display:none" onchange="importCSV(event)">
   </div>
   <p class="hint">CSV: <code>name</code>, <code>grade</code>, <code>period</code>, <code>position</code>, <code>level</code>, <code>group</code></p>
+  <div id="roster-grid-toolbar" class="roster-grid-toolbar">
+    <span class="roster-grid-count" id="roster-selected-count">0 players selected</span>
+    <select id="roster-bulk-field"><option value="period">Period</option><option value="group_name">Group</option><option value="level">Level</option><option value="position">Position</option></select>
+    <input type="text" id="roster-bulk-value" placeholder="New value">
+    <button class="btn-gh" onclick="applyRosterBulk()">Apply to selected</button>
+    <button class="btn-g" onclick="saveRosterGrid()">Save Changes</button>
+    <button class="btn-gh" onclick="cancelRosterGrid()">Cancel</button>
+  </div>
   <table class="tbl">
     <thead><tr>
       <th class="sort-col" onclick="sortBy('name')">Name <span id="sa-name">↕</span></th>
@@ -454,6 +470,7 @@ let sports=[];
 let currentSport=null; // the active sport object
 let players=[],sessions=[],attendance=[],circusRecords=[],circusHistory=[],strikeResets=[];
 let rSort={col:'name',dir:1};
+let rosterGridMode=false,rosterSelected={};
 let sessFilter='all';
 let sessSortCol={};
 
@@ -845,39 +862,96 @@ function refreshPosFilter(){
   var pos=players.map(function(p){return p.position;}).filter(Boolean).filter(function(v,i,a){return a.indexOf(v)===i;}).sort();
   sel.innerHTML='<option value="">All Positions</option>'+pos.map(function(p){return'<option'+(p===cur?' selected':'')+'>'+p+'</option>';}).join('');
 }
+function rosterCell(p,field){
+  var v=p[field]==null?'':String(p[field]);
+  if(field==='level'||field==='group_name'){
+    var opts=field==='level'?['Freshman','JV','Varsity']:['AM','PM'];
+    return '<select class="roster-grid-cell" data-player="'+p.id+'" data-field="'+field+'"><option value="">—</option>'+opts.map(function(x){return '<option value="'+x+'"'+(v===x?' selected':'')+'>'+x+'</option>';}).join('')+'</select>';
+  }
+  return '<input class="roster-grid-cell" data-player="'+p.id+'" data-field="'+field+'" value="'+esc(v)+'">';
+}
+function updateRosterSelectedCount(){
+  var n=Object.keys(rosterSelected).filter(function(id){return rosterSelected[id];}).length;
+  document.getElementById('roster-selected-count').textContent=n+' player'+(n===1?'':'s')+' selected';
+}
+function toggleRosterGrid(){
+  rosterGridMode=!rosterGridMode;rosterSelected={};
+  document.getElementById('roster-grid-toolbar').classList.toggle('open',rosterGridMode);
+  document.getElementById('roster-grid-toggle').textContent=rosterGridMode?'▦ Spreadsheet Mode On':'▦ Edit Grid';
+  renderRoster();
+}
+function cancelRosterGrid(){
+  rosterGridMode=false;rosterSelected={};
+  document.getElementById('roster-grid-toolbar').classList.remove('open');
+  document.getElementById('roster-grid-toggle').textContent='▦ Edit Grid';renderRoster();
+}
+function selectRosterRow(id,on){rosterSelected[id]=on;updateRosterSelectedCount();}
+function selectAllRosterRows(on){
+  document.querySelectorAll('#roster-body .roster-row-select').forEach(function(x){x.checked=on;rosterSelected[x.value]=on;});
+  updateRosterSelectedCount();
+}
+function applyRosterBulk(){
+  var field=document.getElementById('roster-bulk-field').value,value=document.getElementById('roster-bulk-value').value.trim();
+  var ids=Object.keys(rosterSelected).filter(function(id){return rosterSelected[id];});
+  if(!ids.length){toast('Select at least one player');return;}
+  ids.forEach(function(id){var el=document.querySelector('[data-player="'+id+'"][data-field="'+field+'"]');if(el)el.value=value;});
+  toast('Applied to '+ids.length+' players — click Save Changes');
+}
+async function saveRosterGrid(){
+  var rows={};
+  document.querySelectorAll('#roster-body [data-player][data-field]').forEach(function(el){
+    var id=el.dataset.player,field=el.dataset.field;if(!rows[id])rows[id]={};
+    rows[id][field]=el.type==='checkbox'?el.checked:(el.value.trim()||null);
+  });
+  var changes=[];
+  Object.keys(rows).forEach(function(id){
+    var p=players.find(function(x){return x.id===id;});if(!p)return;
+    var patch={};Object.keys(rows[id]).forEach(function(f){
+      var old=p[f];if(f==='active'){if((old===false||old==='false')!==!rows[id][f])patch[f]=rows[id][f];}
+      else if((old==null?'':String(old))!==(rows[id][f]||''))patch[f]=rows[id][f];
+    });
+    if(Object.keys(patch).length)changes.push({id:id,patch:patch});
+  });
+  if(!changes.length){toast('No changes to save');cancelRosterGrid();return;}
+  var failed=0;
+  for(var i=0;i<changes.length;i++){
+    var item=changes[i],res=await db.from('players').update(item.patch).eq('id',item.id);
+    if(res.error){failed++;continue;}
+    var p=players.find(function(x){return x.id===item.id;});if(p)Object.assign(p,item.patch);
+  }
+  if(failed){toast('Some updates failed ('+failed+'). Fix and save again.');}
+  else{toast('✓ Saved '+changes.length+' roster updates');cancelRosterGrid();}
+  refreshPosFilter();renderRoster();renderReports();
+}
 function renderRoster(){
-  var search=document.getElementById('r-search').value.toLowerCase();
-  var level=document.getElementById('r-level').value;
-  var group=document.getElementById('r-group').value;
-  var pos=document.getElementById('r-pos').value;
-  var af=document.getElementById('r-active').value;
+  var search=document.getElementById('r-search').value.toLowerCase(),level=document.getElementById('r-level').value;
+  var group=document.getElementById('r-group').value,pos=document.getElementById('r-pos').value,af=document.getElementById('r-active').value;
   var list=players.filter(function(p){
     if(search&&p.name.toLowerCase().indexOf(search)===-1)return false;
-    if(level&&p.level!==level)return false;if(group&&p.group_name!==group)return false;
-    if(pos&&p.position!==pos)return false;
+    if(level&&p.level!==level)return false;if(group&&p.group_name!==group)return false;if(pos&&p.position!==pos)return false;
     if(af==='active'&&(p.active===false||p.active==='false'))return false;
-    if(af==='inactive'&&p.active!==false&&p.active!=='false')return false;
-    return true;
+    if(af==='inactive'&&p.active!==false&&p.active!=='false')return false;return true;
   });
-  list.sort(function(a,b){var av=(a[rSort.col]||'').toString().toLowerCase();var bv=(b[rSort.col]||'').toString().toLowerCase();return av<bv?-rSort.dir:av>bv?rSort.dir:0;});
-  ['name','grade','period','position','level','group_name'].forEach(function(c){var el=document.getElementById('sa-'+c);if(!el)return;el.textContent=rSort.col===c?(rSort.dir===1?'↑':'↓'):'↕';el.parentElement.classList.toggle('sorted',rSort.col===c);});
+  list.sort(function(a,b){var av=(a[rSort.col]||'').toString().toLowerCase(),bv=(b[rSort.col]||'').toString().toLowerCase();return av<bv?-rSort.dir:av>bv?rSort.dir:0;});
   var tb=document.getElementById('roster-body');
-  if(!list.length){tb.innerHTML='<tr><td colspan="8" class="empty">No players match filters.</td></tr>';return;}
+  var head=document.querySelector('#page-roster thead tr');
+  if(!list.length){tb.innerHTML='<tr><td colspan="8" class="empty">No players match filters.</td></tr>';updateRosterSelectedCount();return;}
+  if(rosterGridMode){
+    head.innerHTML='<th><input type="checkbox" class="roster-grid-check" onchange="selectAllRosterRows(this.checked)" aria-label="Select visible"></th><th>Name</th><th>Grade</th><th>Period</th><th>Position</th><th>Level</th><th>Group</th><th>Active</th>';
+    tb.innerHTML=list.map(function(p){
+      var inactive=p.active===false||p.active==='false';
+      return '<tr class="roster-grid-row"><td><input class="roster-row-select" type="checkbox" value="'+p.id+'"'+(rosterSelected[p.id]?' checked':'')+' onchange="selectRosterRow(this.value,this.checked)"></td>'+
+      '<td>'+rosterCell(p,'name')+'</td><td>'+rosterCell(p,'grade')+'</td><td>'+rosterCell(p,'period')+'</td><td>'+rosterCell(p,'position')+'</td><td>'+rosterCell(p,'level')+'</td><td>'+rosterCell(p,'group_name')+'</td>'+
+      '<td><input type="checkbox" data-player="'+p.id+'" data-field="active"'+(inactive?'':' checked')+' aria-label="Active"></td></tr>';
+    }).join('');updateRosterSelectedCount();return;
+  }
+  head.innerHTML='<th class="sort-col" onclick="sortBy(\\'name\\')">Name <span id="sa-name">↕</span></th><th class="sort-col hide-mobile" onclick="sortBy(\\'grade\\')">Grade <span id="sa-grade">↕</span></th><th class="sort-col hide-mobile" onclick="sortBy(\\'period\\')">Period <span id="sa-period">↕</span></th><th class="sort-col" onclick="sortBy(\\'position\\')">Position <span id="sa-position">↕</span></th><th class="sort-col" onclick="sortBy(\\'level\\')">Level <span id="sa-level">↕</span></th><th class="sort-col" onclick="sortBy(\\'group_name\\')">Group <span id="sa-group_name">↕</span></th><th>Strikes</th><th></th>';
   tb.innerHTML=list.map(function(p){
-    var strikes=getStrikes(p.id);var oc=currentSport&&currentSport.has_circus?circusRecords.find(function(c){return c.player_id===p.id;}):null;
+    var strikes=getStrikes(p.id),oc=currentSport&&currentSport.has_circus?circusRecords.find(function(c){return c.player_id===p.id;}):null;
     var sb=oc?'<span class="b b-strike">🎪 '+strikes+'</span>':isDueForCircus(p.id)&&currentSport&&currentSport.has_circus?'<span class="b br">'+strikes+' ⚡ Circus!</span>':strikes>0?'<span class="b ba">'+strikes+' strike'+(strikes>1?'s':'')+'</span>':'<span style="color:var(--muted);font-size:11px">—</span>';
-    var ii=p.active===false||p.active==='false';
-    var tb2=ii?'<button class="btn-g" onclick="toggleActive(\''+p.id+'\',true)">Reactivate</button>':'<button class="btn-gh" onclick="toggleActive(\''+p.id+'\',false)">Set Inactive</button>';
-    return'<tr'+(ii?' style="opacity:.55"':'')+'>'+
-      '<td>'+esc(p.name)+(ii?' <span class="b b-inactive">Inactive</span>':'')+'</td>'+
-      '<td class="hide-mobile">'+(p.grade||dash())+'</td>'+
-      '<td class="hide-mobile">'+(p.period||dash())+'</td>'+
-      '<td>'+(p.position||dash())+'</td>'+
-      '<td>'+lvlBadge(p.level)+'</td>'+
-      '<td>'+grpBadge(p.group_name)+'</td>'+
-      '<td>'+sb+'</td>'+
-      '<td style="display:flex;gap:6px;justify-content:flex-end">'+tb2+'<button class="btn-edit" onclick="openEdit(\''+p.id+'\')">Edit</button><button class="btn-del" onclick="delPlayer(\''+p.id+'\')">Remove</button></td></tr>';
-  }).join('');
+    var ii=p.active===false||p.active==='false',act=ii?'<button class="btn-g" onclick="toggleActive(\\''+p.id+'\\',true)">Reactivate</button>':'<button class="btn-gh" onclick="toggleActive(\\''+p.id+'\\',false)">Set Inactive</button>';
+    return '<tr'+(ii?' style="opacity:.55"':'')+'><td>'+esc(p.name)+(ii?' <span class="b b-inactive">Inactive</span>':'')+'</td><td class="hide-mobile">'+(p.grade||dash())+'</td><td class="hide-mobile">'+(p.period||dash())+'</td><td>'+(p.position||dash())+'</td><td>'+lvlBadge(p.level)+'</td><td>'+grpBadge(p.group_name)+'</td><td>'+sb+'</td><td style="display:flex;gap:6px;justify-content:flex-end">'+act+'<button class="btn-edit" onclick="openEdit(\\''+p.id+'\\')">Edit</button><button class="btn-del" onclick="delPlayer(\\''+p.id+'\\')">Remove</button></td></tr>';
+  }).join('');updateRosterSelectedCount();
 }
 function sortBy(col){rSort.dir=rSort.col===col?rSort.dir*-1:1;rSort.col=col;renderRoster();}
 function openAdd(){
